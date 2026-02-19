@@ -1,0 +1,11 @@
+[project]
+name = "causal-rl"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "gymnasium>=1.2.3",
+    "torch>=2.10.0",
+    "torch-geometric>=2.7.0",
+]
