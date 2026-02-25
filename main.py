@@ -1,95 +1,130 @@
 import torch
-import random
 import numpy as np
-
+import random
 from environment import ORANEnvironment
 from CDL import CDL
 from groundTruth import get_ground_truth_adjacency, graph_accuracy, extract_conflicts, visualize_graph
 
+SEED = 42
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
 
-def collect_transitions(env, num_steps):
-    transitions = []
-    for _ in range(num_steps):
-        s_t, s_tp1 = env.step()
-        transitions.append((s_t, s_tp1))
-    return transitions
+STATE_DIM       = 11        # 7 params + 4 KPIs
+ACTION_DIM      = 7         # new param values P1..P7
 
+COLLECT_STEPS   = 20_000    # total environment steps to collect
+TRAIN_STEPS     = 10_000    # gradient steps
+BATCH_SIZE      = 256
+VAL_SPLIT       = 0.1       # fraction of buffer used for CMI evaluation
+CMI_EVAL_EVERY  = 500       # evaluate & update causal graph every N train steps
+LOG_EVERY       = 100       # print loss every N train steps
 
-def create_rollout_dataset(transitions, H):
-    data = []
-    for i in range(len(transitions) - H):
-        rollout = []
-        rollout.append(transitions[i][0])
-        for h in range(H):
-            rollout.append(transitions[i + h][1])
-        data.append(rollout)
-    return torch.tensor(data, dtype=torch.float32)
-
-
-def train_val_split(data, val_ratio=0.1):
-    N = len(data)
-    idx = list(range(N))
-    random.shuffle(idx)
-    split = int(N * (1 - val_ratio))
-    train_idx = idx[:split]
-    val_idx = idx[split:]
-    return data[train_idx], data[val_idx]
+HIDDEN_DIM      = 64
+PRED_HIDDEN     = [64, 32]
+LR              = 3e-4
+CMI_THRESHOLD   = 0.05
+EMA_DECAY       = 0.999
 
 
-def sample_batch(data, batch_size):
-    idx = np.random.choice(len(data), batch_size, replace=False)
-    return data[idx]
-
-
-
-def main():
-    torch.manual_seed(0)
-    random.seed(0)
-    np.random.seed(0)
-
+def collect_transitions(n_steps: int):
     env = ORANEnvironment()
+    states, next_states, actions = [], [], []
 
-    num_transitions = 100000
-    H = 3
-    batch_size = 32
-    training_steps = 50000
+    for _ in range(n_steps):
+        s_t, s_tp1 = env.step()
+        a_t = s_tp1[:ACTION_DIM]
 
-    transitions = collect_transitions(env, num_transitions)
-    dataset = create_rollout_dataset(transitions, H)
-    train_data, val_data = train_val_split(dataset)
+        states.append(s_t)
+        next_states.append(s_tp1)
+        actions.append(a_t)
 
-    state_dim = dataset.shape[-1]
+    states      = torch.tensor(np.array(states),      dtype=torch.float32)
+    next_states = torch.tensor(np.array(next_states), dtype=torch.float32)
+    actions     = torch.tensor(np.array(actions),     dtype=torch.float32)
+
+    return states, next_states, actions
+
+
+def make_s_batch(states, next_states):
+    return torch.stack([states, next_states], dim=1)
+
+
+def train():
+    print("=" * 60)
+    print(f"  Collecting {COLLECT_STEPS} transitions from ORANEnvironment …")
+    print("=" * 60)
+
+    states, next_states, actions = collect_transitions(COLLECT_STEPS)
+
+    n_val   = int(len(states) * VAL_SPLIT)
+    n_train = len(states) - n_val
+
+    train_s   = states[:n_train]
+    train_ns  = next_states[:n_train]
+    train_a   = actions[:n_train]
+
+    val_s     = states[n_train:]
+    val_ns    = next_states[n_train:]
+    val_a     = actions[n_train:]
+
+    print(f"  Train samples : {n_train}")
+    print(f"  Val   samples : {n_val}\n")
 
     cdl = CDL(
-        state_dim=state_dim,
-        hidden_dim=64,
-        pred_hidden=[64, 32],
-        lr=3e-4,
-        H=H,
-        cmi_threshold=0.02,
-        ema_decay=0.999
+        state_dim     = STATE_DIM,
+        action_dim    = ACTION_DIM,
+        hidden_dim    = HIDDEN_DIM,
+        pred_hidden   = PRED_HIDDEN,
+        lr            = LR,
+        cmi_threshold = CMI_THRESHOLD,
+        ema_decay     = EMA_DECAY,
     )
+    print(f"  Device : {cdl.device}\n")
 
-    for step in range(training_steps):
-        batch = sample_batch(train_data, batch_size)
-        loss = cdl.train_step(batch)
+    val_s_batch = make_s_batch(val_s, val_ns).to(cdl.device)
+    val_a       = val_a.to(cdl.device)
 
-        if step % 10 == 0:
-            val_batch = sample_batch(val_data, batch_size)
-            cdl.evaluate_cmi(val_batch)
+    print(f"  Training for {TRAIN_STEPS} steps …")
+    print("-" * 60)
 
-        if step % 1000 == 0:
-            print(f"Step {step}, Loss {loss:.4f}")
+    for step in range(1, TRAIN_STEPS + 1):
 
-    graph = cdl.get_causal_graph().cpu().numpy()
+        idx     = torch.randint(0, n_train, (BATCH_SIZE,))
+        s_batch = make_s_batch(train_s[idx], train_ns[idx]).to(cdl.device)
+        a_batch = train_a[idx].to(cdl.device)
 
-    print("Learned Adjacency Matrix:")
-    print(graph)
+        loss = cdl.train_step(s_batch, a_batch)
+
+        if step % CMI_EVAL_EVERY == 0:
+            cdl.evaluate_cmi(val_s_batch, val_a)
+
+        if step % LOG_EVERY == 0:
+            graph = cdl.get_causal_graph()
+            n_edges = graph.sum().item()
+            print(f"  Step {step:>6d} | loss = {loss:.4f} | causal edges = {int(n_edges)}")
+
+    print("\n" + "=" * 60)
+    print("  Final causal graph  (rows = s^i_t,  cols = s^j_{{t+1}})")
+    print("  State order: P1 P2 P3 P4 P5 P6 P7 K1 K2 K3 K4")
+    print("=" * 60)
+
+    cdl.evaluate_cmi(val_s_batch, val_a)
+    graph = cdl.get_causal_graph().cpu()
+
+    labels = ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "K1", "K2", "K3", "K4"]
+    header = "       " + "  ".join(f"{l:>2}" for l in labels)
+    print(header)
+    print("       " + "--" * len(labels) * 2)
+    for i, row_label in enumerate(labels):
+        row = "  ".join(str(graph[i, j].item()) for j in range(STATE_DIM))
+        print(f"  {row_label:>2}  |  {row}")
 
     gt = get_ground_truth_adjacency()
     print("Ground Truth Adjacency Matrix:")
     print(gt)
 
+    graph = np.array(graph)
     acc = graph_accuracy(graph, gt)
     print(f"Graph Accuracy: {acc:.4f}")
 
@@ -103,7 +138,8 @@ def main():
 
     visualize_graph(graph)
 
+    return cdl, graph
 
 
 if __name__ == "__main__":
-    main()
+    cdl, graph = train()

@@ -1,6 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
-
+import numpy as np
 
 def get_ground_truth_adjacency():
     D = 11
@@ -56,23 +56,80 @@ def extract_conflicts(graph):
     return indirect, implicit
 
 
+import networkx as nx
+import matplotlib.pyplot as plt
+
 def visualize_graph(adj):
     G = nx.DiGraph()
+    
+    labels = ["P1","P2","P3","P4","P5","P6","P7","K1","K2","K3","K4"]
+    p_nodes = [n for n in labels if n.startswith('P')]
+    k_nodes = [n for n in labels if n.startswith('K')]
+    
+    G.add_nodes_from(labels)
+    
+    indirect, implicit = extract_conflicts(adj)
 
-    labels = [
-        "P1","P2","P3","P4","P5","P6","P7",
-        "K1","K2","K3","K4"
+    for i, j in indirect:
+        G.add_edge(labels[i], labels[j], color='red', weight=1.5, type='Indirect')
+    # for i, j in implicit:
+    #     G.add_edge(labels[i], labels[j], color='blue', weight=1.0, type='Implicit')
+
+    pos = nx.shell_layout(G, [k_nodes, p_nodes])
+
+    plt.figure(figsize=(10, 8))
+
+    nx.draw_networkx_nodes(G, pos, node_size=1200, node_color="#A0CBE2", edgecolors="grey")
+    nx.draw_networkx_labels(G, pos, font_size=10, font_family="sans-serif")
+
+    edges = G.edges(data=True)
+    for u, v, d in edges:
+        nx.draw_networkx_edges(
+            G, pos, 
+            edgelist=[(u, v)],
+            edge_color=d['color'],
+            width=d['weight'],
+            arrowsize=15,
+            connectionstyle="arc3,rad=0.2", 
+            alpha=0.6
+        )
+
+    from matplotlib.lines import Line2D
+    legend_elements = [
+        Line2D([0], [0], color='red', lw=2, label='Indirect Conflict'),
+        Line2D([0], [0], color='blue', lw=2, label='Implicit Conflict')
+    ]
+    plt.legend(handles=legend_elements, loc='upper right')
+
+    plt.title("Conflict Dependency Graph", pad=20)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.show()
+
+
+if __name__ == "__main__":
+# Adjacency matrix for P1-P7 and K1-K4
+    graph = [
+        [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1], # P1
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1], # P2
+        [1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0], # P3
+        [1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0], # P4
+        [1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0], # P5
+        [1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1], # P6
+        [1, 1, 1, 1, 0, 1, 0, 0, 0, 1, 1], # P7
+        [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], # K1
+        [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], # K2
+        [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], # K3
+        [1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0]  # K4
     ]
 
-    for i in range(len(labels)):
-        G.add_node(labels[i])
+    graph = np.array(graph)
+    gt = get_ground_truth_adjacency()
+    print("Ground Truth Adjacency Matrix:")
+    print(gt)
 
-    for i in range(adj.shape[0]):
-        for j in range(adj.shape[1]):
-            if adj[i, j] == 1:
-                G.add_edge(labels[i], labels[j])
+    acc = graph_accuracy(graph, gt)
+    print(f"Graph Accuracy: {acc:.4f}")
 
-    pos = nx.spring_layout(G)
-    nx.draw(G, pos, with_labels=True, node_size=2000,
-            node_color="lightblue", arrowsize=20)
-    plt.show()
+
+    visualize_graph(graph)

@@ -65,7 +65,7 @@ class CDL:
         hidden_dim=64,
         pred_hidden=[64, 32],
         lr=3e-4,
-        cmi_threshold=0.02,
+        cmi_threshold=0.05,
         ema_decay=0.999,
         device=None,
     ):
@@ -88,12 +88,10 @@ class CDL:
 
 
     def gaussian_nll(self, mean, std, target):
-        """Gaussian negative log-likelihood (scalar per element)."""
         var = std ** 2
         return 0.5 * torch.log(2 * torch.pi * var) + (target - mean) ** 2 / (2 * var)
 
     def _parent_mask(self, j):
-        """Binary mask that keeps only the inferred parents of s^j_{t+1}."""
         pa_mask = torch.zeros(self.state_dim, device=self.device)
         parents = (self.cmi_matrix[:, j] > self.cmi_threshold).nonzero(as_tuple=True)[0]
         pa_mask[parents] = 1
@@ -102,9 +100,9 @@ class CDL:
 
     def full_cdl_loss(self, s_batch, a_batch):
 
-        s      = s_batch[:, 0]          # (B, D)
-        s_next = s_batch[:, 1]          # (B, D)
-        a      = a_batch                # (B, action_dim)
+        s      = s_batch[:, 0]          
+        s_next = s_batch[:, 1]          
+        a      = a_batch                
 
         loss = torch.tensor(0.0, device=self.device)
 
@@ -131,37 +129,15 @@ class CDL:
         return loss
 
     def train_step(self, s_batch, a_batch):
-        """
-        One gradient step.
-
-        Args:
-            s_batch : (B, 2, state_dim)
-            a_batch : (B, action_dim)
-        Returns:
-            float loss value
-        """
         self.opt.zero_grad()
         loss = self.full_cdl_loss(s_batch, a_batch)
         loss.backward()
         self.opt.step()
         return loss.item()
 
-    # ------------------------------------------------------------------
-    # CMI estimation  (Eq. 2 — validation data, no gradients)
-    # ------------------------------------------------------------------
 
     def evaluate_cmi(self, s_val, a_val):
-        """
-        Estimates CMI_{ij} for all (i, j) pairs on validation data and
-        updates self.cmi_matrix via EMA.
 
-        CMI_{ij} = E[log p(s^j_{t+1}|a_t,s_t) - log p(s^j_{t+1}|{a_t,s_t\s^i_t})]
-                 = E[NLL_masked - NLL_full]   (positive when i is causal for j)
-
-        Args:
-            s_val : (B, 2, state_dim)
-            a_val : (B, action_dim)
-        """
         s      = s_val[:, 0]
         s_next = s_val[:, 1]
         a      = a_val
@@ -170,7 +146,6 @@ class CDL:
             for j in range(self.state_dim):
                 target = s_next[:, j:j+1]
 
-                # Full-input NLL (baseline)
                 full_mean, full_std = self.models[j](s, a, mask=None)
                 full_nll = self.gaussian_nll(full_mean, full_std, target).mean()
 
@@ -181,29 +156,19 @@ class CDL:
                     m_mean, m_std = self.models[j](s, a, mask=mask_i)
                     masked_nll = self.gaussian_nll(m_mean, m_std, target).mean()
 
-                    # CMI >= 0 when s^i_t is informative for s^j_{t+1}
-                    # Clamp at 0 to avoid noise pushing CMI negative
+
                     cmi = torch.clamp(masked_nll - full_nll, min=0.0)
 
-                    # EMA update
                     self.cmi_matrix[i, j] = (
                         self.ema_decay       * self.cmi_matrix[i, j]
                         + (1 - self.ema_decay) * cmi.item()
                     )
 
-    # ------------------------------------------------------------------
-    # Causal graph
-    # ------------------------------------------------------------------
 
     def get_causal_graph(self):
-        """
-        Returns a (state_dim x state_dim) binary adjacency matrix where
-        entry [i, j] = 1 iff the causal edge s^i_t -> s^j_{t+1} is inferred.
-        """
         return (self.cmi_matrix > self.cmi_threshold).int()
 
     def to(self, device):
-        """Move the entire CDL model to a new device."""
         self.device = torch.device(device)
         self.models = self.models.to(self.device)
         self.cmi_matrix = self.cmi_matrix.to(self.device)
