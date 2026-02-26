@@ -1,0 +1,21 @@
+SEED = 42
+
+STATE_DIM      = 11
+ACTION_DIM     = 7
+
+COLLECT_STEPS  = 25_000
+TRAIN_STEPS    = 20_000
+BATCH_SIZE     = 256
+VAL_SPLIT      = 0.1
+CMI_EVAL_EVERY = 500
+LOG_EVERY      = 100
+
+HIDDEN_DIM     = 64
+PRED_HIDDEN    = [64, 32]
+LR             = 3e-4
+CMI_THRESHOLD  = 0.02    
+EMA_DECAY      = 0.999
+EPSILON        = 0.1
+
+#For interventional policy
+INITIAL_COLLECTION_STEPS = 2_000

@@ -6,10 +6,12 @@ Action :  7-dim  (new values of P1..P7 set by xApps each step)
 """
 
 import torch
+from torch import Tensor
 import numpy as np
 import random
 from Environment import ORANEnvironment,initialize_environment
-from Policies import RandomExploration
+from Policies import RandomExploration,InterventionPolicy
+from Parameters import *    #contains hyperparameters
 
 from CDL import CDL
 from groundTruth import (
@@ -22,33 +24,22 @@ from groundTruth import (
     LABELS,
 )
 
-SEED = 42
 random.seed(SEED)
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 
-STATE_DIM      = 11
-ACTION_DIM     = 7
 
-COLLECT_STEPS  = 25_000
-TRAIN_STEPS    = 20_000
-BATCH_SIZE     = 256
-VAL_SPLIT      = 0.1
-CMI_EVAL_EVERY = 500
-LOG_EVERY      = 100
-
-HIDDEN_DIM     = 64
-PRED_HIDDEN    = [64, 32]
-LR             = 3e-4
-CMI_THRESHOLD  = 0.02    
-EMA_DECAY      = 0.999
-EPSILON        = 0.1
-
-
-
-def collect_transitions(n_steps):
+def collect_transitions(n_steps,cmi_matrix:Tensor):
     params,kpis,xapps = initialize_environment()
-    policy = RandomExploration(params=params,kpis=kpis,xapps=xapps,cmi_threshold=CMI_THRESHOLD,epsilon=EPSILON)
+
+    policy = RandomExploration(
+        params=params,
+        kpis=kpis,
+        xapps=xapps,
+        cmi_threshold=CMI_THRESHOLD,
+        epsilon=EPSILON,
+        cmi_matrix=cmi_matrix)
+    
     env = ORANEnvironment(params=params,kpis=kpis,xapps=xapps,policy=policy)
     states, next_states, actions = [], [], []
 
@@ -84,22 +75,8 @@ def make_s_batch(states, next_states):
     return torch.stack([states, next_states], dim=1)
 
 
-
 def train():
     gt = get_ground_truth_adjacency()
-
-    print("=" * 60)
-    print(f"  Collecting {COLLECT_STEPS} transitions ...")
-    print("=" * 60)
-    states, next_states, actions = collect_transitions(COLLECT_STEPS)
-
-    n_val   = int(len(states) * VAL_SPLIT)
-    n_train = len(states) - n_val
-    train_s, train_ns, train_a = states[:n_train], next_states[:n_train], actions[:n_train]
-    val_s,   val_ns,   val_a   = states[n_train:], next_states[n_train:], actions[n_train:]
-
-    print(f"  Train: {n_train}  Val: {n_val}\n")
-
     cdl = CDL(
         state_dim     = STATE_DIM,
         action_dim    = ACTION_DIM,
@@ -109,6 +86,22 @@ def train():
         cmi_threshold = CMI_THRESHOLD,
         ema_decay     = EMA_DECAY,
     )
+
+    cmi_matrix = cdl.get_cmi_matrix()
+
+    
+    print("=" * 60)
+    print(f"  Collecting {COLLECT_STEPS} transitions ...")
+    print("=" * 60)
+    states, next_states, actions = collect_transitions(COLLECT_STEPS,cmi_matrix)
+
+    n_val   = int(len(states) * VAL_SPLIT)
+    n_train = len(states) - n_val
+    train_s, train_ns, train_a = states[:n_train], next_states[:n_train], actions[:n_train]
+    val_s,   val_ns,   val_a   = states[n_train:], next_states[n_train:], actions[n_train:]
+
+    print(f"  Train: {n_train}  Val: {n_val}\n")
+
     print(f"  Device: {cdl.device}\n")
 
     val_s_batch = make_s_batch(val_s, val_ns).to(cdl.device)
@@ -160,7 +153,7 @@ def train():
     else:
         print("\n  No spurious Param -> Param edges.")
 
-    plot_cmi_heatmap(cdl.get_cmi_matrix(), labels=LABELS,
+    plot_cmi_heatmap(cmi_matrix, labels=LABELS,
                      title=f"Normalized CMI (threshold={CMI_THRESHOLD})")
     visualize_graph(graph, title="Learned Causal Graph", labels=LABELS)
     compare_graphs(graph, gt)

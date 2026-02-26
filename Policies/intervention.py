@@ -21,149 +21,89 @@ Three intervention modes (automatically selected each step):
 
 import random
 import numpy as np
-import torch
+from torch import Tensor
 from typing import List, Tuple, Optional
-
+from Environment import Param,KPI,XApp
+from Parameters import INITIAL_COLLECTION_STEPS
 
 class InterventionPolicy:
-    """
-    Decides which params to intervene on and how, based on current
-    CMI uncertainty. Replaces the random action_fn in environment.py.
-
-    Usage:
-        policy = InterventionPolicy(param_thresholds, cmi_threshold=0.01)
-
-        # each env step:
-        action = policy.select_action(current_params, cdl.get_cmi_matrix())
-        for i, param in enumerate(params):
-            param.set_param(action[i])
-    """
-
     def __init__(
         self,
-        param_thresholds: List[Tuple[float, float]],
+        xapps:          List[XApp],
+        params:          List[Param],
+        kpis:            List[KPI],
         cmi_threshold:    float = 0.01,
-        epsilon:          float = 0.1,   # prob of random fallback
-        n_params:         int   = 7,
-        n_kpis:           int   = 4,
+        epsilon:          float = 0.1,
+        cmi_matrix:      Tensor=None,
     ):
-        self.param_thresholds = param_thresholds   # [(low, high)] * n_params
-        self.cmi_threshold    = cmi_threshold
-        self.epsilon          = epsilon
-        self.n_params         = n_params
-        self.n_kpis           = n_kpis
+        self.xapps         = xapps
+        self.params        = params
+        self.kpis          = kpis
+        self.n_params      = len(params)
+        self.n_kpis        = len(kpis)
+        self.n_xapps       = len(xapps)
+        self.cmi_threshold = cmi_threshold
+        self.epsilon       = epsilon
+        self.param_thresholds = [(p.get_threshold()[0],p.get_threshold()[1]) for p in self.params]   
+        self.cmi_matrix     = cmi_matrix
 
-        # Tracks how many steps each param has been the focus
-        self.focus_counts     = np.zeros(n_params)
-        # Current frozen baseline values for non-focus params
+        self.focus_counts     = np.zeros(self.n_params)
         self.frozen_values    = [
-            (low + high) / 2.0 for low, high in param_thresholds
+            (low + high) / 2.0 for low, high in self.param_thresholds
         ]
         self.step             = 0
 
-    def _param_uncertainty(self, cmi_matrix: torch.Tensor) -> np.ndarray:
-        """
-        For each param i, compute its uncertainty score = how ambiguous
-        its causal relationships with KPIs are.
+    def _param_uncertainty(self,cmi_matrix:np.ndarray) -> np.ndarray:
 
-        Ambiguity = distance from threshold, inverted.
-        CMI values near the threshold are most uncertain.
-        CMI values far above OR below threshold are already decided.
+        param_kpi_cmi = cmi_matrix[:self.n_params, self.n_params:]  
 
-        Returns: (n_params,) uncertainty scores, higher = more ambiguous
-        """
-        if isinstance(cmi_matrix, torch.Tensor):
-            cmi = cmi_matrix.cpu().numpy()
-        else:
-            cmi = cmi_matrix
-
-        # Only look at param -> KPI slice: rows 0..6, cols 7..10
-        param_kpi_cmi = cmi[:self.n_params, self.n_params:]  # (7, 4)
-
-        # Distance from threshold — close to threshold = high uncertainty
         dist_from_threshold = np.abs(param_kpi_cmi - self.cmi_threshold)
 
-        # Uncertainty per param = mean ambiguity across all KPIs
-        # Invert so that smallest distance = highest uncertainty
-        uncertainty = 1.0 / (dist_from_threshold.mean(axis=1) + 1e-6)
+        #less distance ,higher uncertainity
+        uncertainty = 1.0 / (dist_from_threshold.mean(axis=1) + 1e-6) 
 
-        return uncertainty  # (n_params,)
+        return uncertainty  
 
-    def _select_focus_param(self, cmi_matrix: torch.Tensor) -> int:
-        """
-        Pick the param to intervene on this step.
+    def _select_focus_param(self,cmi_matrix:np.ndarray) -> int:
 
-        Combines:
-          - Uncertainty score (CMI closest to threshold)
-          - Under-explored bonus (params that haven't been focused on recently)
-        """
         uncertainty  = self._param_uncertainty(cmi_matrix)
 
-        # Normalize focus counts — params focused on less get a bonus
         focus_norm   = self.focus_counts / (self.focus_counts.sum() + 1e-6)
-        explore_bonus = 1.0 - focus_norm   # higher = less explored
 
-        # Combined score
+        #focus low means explored very few times,so 1-focus prioritizes those that have not been explored 
+        explore_bonus = 1.0 - focus_norm   
+
+        # 70% weight given to uncertainity and 30% weight given to unexplored params
         score = uncertainty * 0.7 + explore_bonus * 0.3
 
         return int(np.argmax(score))
 
     def select_action(
         self,
-        current_params: List[float],
-        cmi_matrix:     Optional[torch.Tensor] = None,
-    ) -> List[float]:
-        """
-        Returns a list of new param values [P1..P7].
-
-        Intervention modes:
-          - If cmi_matrix is None or epsilon triggers: full random (warmup)
-          - ISOLATE mode: vary focus param, freeze others at midpoint
-          - SWEEP mode (every 5 steps): push focus param to extreme values
-            alternating min/max for maximum causal signal
-
-        Args:
-            current_params : current [P1..P7] float values
-            cmi_matrix     : (state_dim, state_dim) tensor from cdl.get_cmi_matrix()
-        Returns:
-            new_params : list of 7 float values
-        """
-        self.step += 1
-
-        # Warmup / epsilon-greedy fallback → pure random
+        cmi_matrix:np.ndarray
+    ) -> Tuple[float,float]:
+        
         if cmi_matrix is None or random.random() < self.epsilon:
-            return [
-                random.uniform(low, high)
-                for low, high in self.param_thresholds
-            ]
+            return -1,-1
 
-        # Pick the most uncertain param to focus on
         focus = self._select_focus_param(cmi_matrix)
         self.focus_counts[focus] += 1
 
         low, high = self.param_thresholds[focus]
 
-        # SWEEP mode every 5 steps: alternate between min and max
-        # This maximally separates cause from no-cause for the focus param
-        if self.step % 5 == 0:
+
+        if self.step % 5 == 0: #SWEEP Mode
             focus_value = low if (self.step // 5) % 2 == 0 else high
         else:
-            # ISOLATE mode: random within full range
+            # ISOLATE mode
             focus_value = random.uniform(low, high)
 
-        # All other params frozen at their current values
-        # (freezing removes confounding — only focus param changes)
-        new_params = list(current_params)
-        new_params[focus] = focus_value
-
-        return new_params
+        return focus,focus_value
 
     def update_frozen_values(self, current_params: List[float]):
-        """Call after each step to keep frozen baseline up to date."""
         self.frozen_values = list(current_params)
 
     def get_focus_distribution(self) -> dict:
-        """Returns how often each param was the focus — useful for diagnostics."""
         total = self.focus_counts.sum()
         if total == 0:
             return {f"P{i+1}": 0.0 for i in range(self.n_params)}
@@ -171,3 +111,25 @@ class InterventionPolicy:
             f"P{i+1}": float(self.focus_counts[i] / total)
             for i in range(self.n_params)
         }
+    
+    def randomExplore(self):
+        for xapp in self.xapps:
+            xapp.action()
+    
+    def act(self):
+        self.step = self.step + 1
+        if self.step <= INITIAL_COLLECTION_STEPS:
+            self.randomExplore()
+            return
+
+        cmi_matrix = self.cmi_matrix.detach().cpu().numpy().copy()
+        focus,focus_value = self.select_action(cmi_matrix=cmi_matrix)
+        
+        if focus == -1:
+            self.randomExplore()
+            return
+
+        param=self.params[focus]
+        param.set_param(focus_value)
+
+

@@ -181,7 +181,7 @@ class CDL:
         return graph
 
     def get_cmi_matrix(self):
-        return self.cmi_matrix.clone()
+        return self.cmi_matrix
 
     def to(self, device):
         self.device     = torch.device(device)

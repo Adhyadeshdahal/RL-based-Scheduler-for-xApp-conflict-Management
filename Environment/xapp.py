@@ -12,7 +12,7 @@ class XApp:
     def action(self):
         return self.action_fn(self)
 
-#action for all xapps
+#selects and sets the new value
 def action_fn(self):
     for param in self.params_controlled:
         low, high = param.get_threshold()
