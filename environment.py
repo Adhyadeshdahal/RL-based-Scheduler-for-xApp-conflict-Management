@@ -55,14 +55,14 @@ def update_Kpi2(prev_params: List[float], prev_kpis: List[float]):
     P3 = max(prev_params[2], 1e-3)
     return exp(-(P1 - 50) ** 2 / (2 * (P3 ** 2)))
 
-# K3 depends on P4 and P5
+# K3 depends on P4 and P5 and K1
 def update_Kpi3(prev_params: List[float], prev_kpis: List[float]):
     P4 = prev_params[3]
     P5 = max(prev_params[4], 1e-3)
     K1 = prev_kpis[0]
     return exp(-(P4 + K1) ** 2 / (2 * (P5 ** 2)))
 
-# K3 depends on P7 and P6
+# K3 depends on P7 and P6 and K2
 def update_Kpi4(prev_params: List[float], prev_kpis: List[float]):
     P7 = prev_params[6]
     P6 = max(prev_params[5], 1e-3)
