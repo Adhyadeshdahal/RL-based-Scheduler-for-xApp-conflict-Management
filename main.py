@@ -8,7 +8,9 @@ Action :  7-dim  (new values of P1..P7 set by xApps each step)
 import torch
 import numpy as np
 import random
-from environment import ORANEnvironment
+from Environment import ORANEnvironment,initialize_environment
+from Policies import RandomExploration
+
 from CDL import CDL
 from groundTruth import (
     get_ground_truth_adjacency,
@@ -40,11 +42,14 @@ PRED_HIDDEN    = [64, 32]
 LR             = 3e-4
 CMI_THRESHOLD  = 0.02    
 EMA_DECAY      = 0.999
+EPSILON        = 0.1
 
 
 
 def collect_transitions(n_steps):
-    env = ORANEnvironment()
+    params,kpis,xapps = initialize_environment()
+    policy = RandomExploration(params=params,kpis=kpis,xapps=xapps,cmi_threshold=CMI_THRESHOLD,epsilon=EPSILON)
+    env = ORANEnvironment(params=params,kpis=kpis,xapps=xapps,policy=policy)
     states, next_states, actions = [], [], []
 
     for _ in range(n_steps):
