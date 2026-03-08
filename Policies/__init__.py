@@ -1,2 +1,2 @@
-from Policies.RandomExplorationPolicy import RandomExploration
+from Policies.RandomPolicy import RandomPolicy
 from Policies.intervention import InterventionPolicy

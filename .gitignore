@@ -9,3 +9,8 @@ wheels/
 # Virtual environments
 .venv
 venv
+
+inference_cmi.py
+./inference_cmi.py
+groundTruth.py
+*.png
