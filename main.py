@@ -2,12 +2,12 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 from Environment.QACM import ORANEnvironment2
-from CDL_ammended import CDL
+from CDL import CDL
 from Policies.RandomPolicy import RandomPolicy
 
 
 # ---- CONSTANTS ----
-TOTAL_STEPS = 20000
+TOTAL_STEPS = 20001
 COLLECT_STEPS = True
 INFERENCE_GRADIENT_STEPS = 1
 TRAIN_PROP = 1.0
@@ -168,7 +168,7 @@ def main():
             recall = tp / (tp + fn + 1e-8)
             f1 = 2 * precision * recall / (precision + recall + 1e-8)
             accuracy = (tp + tn) / (tp + tn + fp + fn)
-
+            print(f"Step {step}:")
             print("Precision:", precision)
             print("Recall:", recall)
             print("F1:", f1)
