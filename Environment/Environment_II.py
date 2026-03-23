@@ -2,7 +2,44 @@ import numpy as np
 import gym
 from typing import List, Callable, Tuple
 from math import exp
+KPI_THRESHOLDS = [55, 95, 85, 75, 80, -25]
+MEAN_STD_KPIS = [(21.066, 27.599), (26.213, 34.671), 
+                       (72.769, 39.040), (30.815, 40.555), 
+                       (39.930, 52.155), (-17.803, 12.519)]
 
+class XApp:
+     def __init__(self,threshold,utility_fn,name):
+          self.thresholds = threshold
+          self.threshold = threshold
+          self.compute_utility = utility_fn
+          self.name = name
+
+def compute_utility_value(value,mean_std):
+    mean,std = mean_std
+    value = (value - mean) / std
+    return value
+
+def compute_Xapp1_utility(kpis):
+    return compute_utility_value(kpis[0],MEAN_STD_KPIS[0])
+
+def compute_Xapp2_utility(kpis):
+    return compute_utility_value(kpis[1],MEAN_STD_KPIS[1])
+
+def compute_Xapp3_utility(kpis):
+    return compute_utility_value(kpis[2],MEAN_STD_KPIS[2])
+
+def compute_Xapp4_utility(kpis):
+    return compute_utility_value((kpis[3]+kpis[4])/2,MEAN_STD_KPIS[3])
+
+def compute_Xapp5_utility(kpis):
+    return compute_utility_value(kpis[5],MEAN_STD_KPIS[5])
+
+          
+def RewardFn(kpis,action):
+     return sum(kpis)
+
+     
+    #  return abs(compute_Xapp1_utility()*compute_Xapp2_utility()*compute_Xapp3_utility()*compute_Xapp4_utility()*abs(compute_Xapp5_utility()))
 
 class Param:
     def __init__(self, threshold: Tuple[float, float],id,set_param_fn):
@@ -164,15 +201,20 @@ class ORANEnvironment2(gym.Env):
         super().__init__()
 
         setParamFns = [set_param1,set_param2,set_param3,set_param4,set_param5,set_param6,set_param7,set_param8]
-        ParamThresholds = [(-100,100),(-10,50),(-20,20),(-60,60),(-20,20),(-50,150),(-60,65),(-100,150)]
+        self.paramThresholds = ParamThresholds = [(-100,100),(-10,50),(-20,20),(-60,60),(-20,20),(-50,150),(-60,65),(-100,150)]
         # ParamThresholds = [(0,3),(0,3),(0,3),(0,3),(0,3),(0,3),(0,3),(0,3)]
 
-        kpi_thresholds = [55, 95, 85, 75, 80, -25]
+        kpi_thresholds = KPI_THRESHOLDS
         # kpi_thresholds = [5, 5, 5, 5, 5, -5]
 
         direction = [0, 0, 0, 0, 0, 1] # 0 means maximize, 1 means minimize
         updateKPIFns = [update_Kpi1, update_Kpi2, update_Kpi3, update_Kpi41, update_Kpi42, update_Kpi5]
-        meanStdKPIs = [(21.066, 27.599), (26.213, 34.671), (72.769, 39.040), (30.815, 40.555), (39.930, 52.155), (-17.803, 12.519)]
+        meanStdKPIs = MEAN_STD_KPIS
+        xapp_utility_fns = [compute_Xapp1_utility,compute_Xapp2_utility,compute_Xapp3_utility,compute_Xapp4_utility,compute_Xapp5_utility]
+        xapp_thresholds = KPI_THRESHOLDS
+        xapp_names = [f"xApp{i}" for i in range(len(xapp_utility_fns))]
+
+
 
         # ----- Parameters -----
         self.params = [
@@ -187,6 +229,10 @@ class ORANEnvironment2(gym.Env):
             KPI(name=kpi_names[i], kpi_threshold=kpi_thresholds[i], direction=direction[i], 
                 mean=meanStdKPIs[i][0], std=meanStdKPIs[i][1], updatefn=updateKPIFns[i]) 
             for i in range(6)
+        ]
+
+        self.xapps = [
+             XApp(threshold=xapp_thresholds[i],utility_fn=xapp_utility_fns[i],name=xapp_names[i]) for i,_ in enumerate(xapp_names)
         ]
 
                 # ---- TRUE CAUSAL GRAPH (11 x 11) ----
@@ -241,8 +287,10 @@ class ORANEnvironment2(gym.Env):
         # ----- Discrete Action Space -----
         # action = param_index * num_bins + bin_index
         self.num_bins = num_bins
-        self.action_dim = 1
-        self.action_spec = None   # <-- ADD THIS LINE
+        self.action_dim = 3
+        self.min_bin_length = int(np.min([param[1]-param[0] for param in self.paramThresholds]) // self.num_bins)
+        self.max_bin_length = int(np.max([param[1]-param[0] for param in self.paramThresholds]) // self.num_bins)
+        self.action_space = [self.num_params-1, self.num_bins-1, self.max_bin_length-1]
 
         self.max_steps = max_steps
         self.cur_step = 0
@@ -274,8 +322,10 @@ class ORANEnvironment2(gym.Env):
         return self._get_state()
     
 
-    def reward(self, new_kpis):
+    def reward(self,new_kpis, nw_kpis):
         # return sum([kpi.get_kpi() for kpi in new_kpis])
+        return RewardFn(nw_kpis,None)
+
         satisfied_kpis = [
             kpi.value >= kpi.kpi_threshold if kpi.direction == 0 
             else kpi.value <= kpi.kpi_threshold 
@@ -298,12 +348,19 @@ class ORANEnvironment2(gym.Env):
         return reward
 
 
-    def step(self, action: int):
-        param_id = action // self.num_bins
-        bin_id = action % self.num_bins
+    def step(self, action: Tuple[int,int,int]):
+
+        param_id, bin_id, index = action[0], action[1], action[2]
+        param_0, param_1 = self.paramThresholds[param_id]
+        bin_length = (param_1 - param_0) / self.num_bins  # actual bin length for THIS param
+    
+        # scale index from [0, num_bins-1] → [0, bin_length]
+        offset = (index / (self.num_bins - 1)) * bin_length
 
         low, high = self.params[param_id].get_threshold()
-        value = low + (high - low) * (bin_id / (self.num_bins - 1))
+        value = low + (high - low) * (bin_id / (self.num_bins - 1)) + offset
+        # value = low + (high - low) * (bin_id / (self.num_bins - 1))
+
         self.params[param_id].set_param(value, self.params)
         new_params = [p.get_param() for p in self.params]
 
@@ -314,7 +371,7 @@ class ORANEnvironment2(gym.Env):
             new_kpis.append(val)
 
         # reward = self.reward(self.kpis)  # uses kpi.value internally
-        reward = self.reward(self.kpis) # use this for ablation study to remove reward shaping and only use sum of kpi values as reward
+        reward = self.reward(self.kpis,new_kpis) 
         self.prev_params = new_params
         self.prev_kpis = new_kpis
         self.cur_step += 1
