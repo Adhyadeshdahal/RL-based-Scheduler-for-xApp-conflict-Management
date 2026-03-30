@@ -3,6 +3,26 @@ import gym
 from typing import List, Callable, Tuple
 from math import exp
 
+class XApp:
+     def __init__(self,threshold,utility_fn,name,params):
+          self.thresholds = threshold
+          self.threshold = threshold
+          self.compute_utility = utility_fn
+          self.name = name
+          self.params = []
+
+def compute_A1_utility(kpis):
+    return kpis[0]   # K1
+
+def compute_A2_utility(kpis):
+    return kpis[1]   # K2
+
+def compute_A3_utility(kpis):
+    return kpis[2]   # K3
+
+def compute_A4_utility(kpis):
+    return kpis[3]   # K4
+
 class Param:
     def __init__(self, threshold: Tuple[float, float]):
         self.threshold = threshold
@@ -71,6 +91,33 @@ class ORANEnvironment(gym.Env):
             KPI(update_Kpi2),
             KPI(update_Kpi3),
             KPI(update_Kpi4),
+        ]
+
+        self.xapps = [
+            XApp(
+                threshold=0.3,
+                utility_fn=compute_A1_utility,
+                name="A1",
+                params=[self.params[0], self.params[1]]
+            ),
+            XApp(
+                threshold=0.3,
+                utility_fn=compute_A2_utility,
+                name="A2",
+                params=[self.params[0], self.params[2]]
+            ),
+            XApp(
+                threshold=0.3,
+                utility_fn=compute_A3_utility,
+                name="A3",
+                params=[self.params[3], self.params[4]]
+            ),
+            XApp(
+                threshold=0.3,
+                utility_fn=compute_A4_utility,
+                name="A4",
+                params=[self.params[5], self.params[6]]
+            ),
         ]
 
         # ---- TRUE CAUSAL GRAPH (11 x 11) ----
@@ -157,6 +204,12 @@ class ORANEnvironment(gym.Env):
 
     def observation_spec(self):
         return self._get_state()
+    
+    def get_state_dim(self):
+        return self.num_kpis+self.num_params
+    
+    def get_action_dim(self):
+        return self.action_dim
 
     def observation_dims(self):
         dims = {}

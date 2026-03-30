@@ -8,11 +8,14 @@ MEAN_STD_KPIS = [(21.066, 27.599), (26.213, 34.671),
                        (39.930, 52.155), (-17.803, 12.519)]
 
 class XApp:
-     def __init__(self,threshold,utility_fn,name):
+     def __init__(self,threshold,utility_fn,name,params,direction):
           self.thresholds = threshold
           self.threshold = threshold
           self.compute_utility = utility_fn
           self.name = name
+          self.params = params
+          self.direction = direction
+          
 
 def compute_utility_value(value,mean_std):
     mean,std = mean_std
@@ -56,6 +59,9 @@ class Param:
 
     def get_threshold(self):
         return self.threshold
+    
+
+         
 
 def set_param1(threshold,value,params):
         low, high = threshold
@@ -231,8 +237,17 @@ class ORANEnvironment2(gym.Env):
             for i in range(6)
         ]
 
+        xapp_params = [(self.params[0],self.params[1]),
+                       (self.params[0],self.params[1],self.params[2]),
+                       (self.params[0],self.params[3]),
+                       (self.params[4],self.params[5],self.params[1]),
+                       (self.params[0],self.params[6],self.params[7])
+                       ]
+
+
+
         self.xapps = [
-             XApp(threshold=xapp_thresholds[i],utility_fn=xapp_utility_fns[i],name=xapp_names[i]) for i,_ in enumerate(xapp_names)
+             XApp(threshold=xapp_thresholds[i],utility_fn=xapp_utility_fns[i],name=xapp_names[i],params=xapp_params[i],direction=direction[i]) for i,_ in enumerate(xapp_names)
         ]
 
                 # ---- TRUE CAUSAL GRAPH (11 x 11) ----
@@ -289,7 +304,7 @@ class ORANEnvironment2(gym.Env):
         self.num_bins = num_bins
         self.action_dim = 3
         self.min_bin_length = int(np.min([param[1]-param[0] for param in self.paramThresholds]) // self.num_bins)
-        self.max_bin_length = int(np.max([param[1]-param[0] for param in self.paramThresholds]) // self.num_bins)
+        self.max_bin_length = int([param[1]-param[0] for param in self.paramThresholds] // self.num_bins) 
         self.action_space = [self.num_params-1, self.num_bins-1, self.max_bin_length-1]
 
         self.max_steps = max_steps
@@ -410,3 +425,9 @@ class ORANEnvironment2(gym.Env):
                 name = kpi.name
                 dims[name] = np.array([1])
         return dims
+    
+    def get_state_dim(self):
+        return self.num_kpis+self.num_params
+    
+    def get_action_dim(self):
+        return self.action_dim

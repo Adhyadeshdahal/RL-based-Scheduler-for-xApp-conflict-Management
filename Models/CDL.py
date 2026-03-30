@@ -120,7 +120,16 @@ class CDL:
         self.opt.zero_grad()
         total_loss = 0.0
 
-        drop_idx = torch.randint(fd + 1, (bs,), device=self.device)
+        # a_batch[:, 0] is param_id — the param that was changed
+        # bias: drop the changed param more often so model learns to predict without it
+        changed_param_ids = a_batch[:, 0].long()           # (bs,) which param changed
+        
+        # 50% of the time drop the changed param, 50% drop random
+        use_informed = torch.rand(bs, device=self.device) > 0.5
+        random_drop  = torch.randint(fd + 1, (bs,), device=self.device)
+        informed_drop = changed_param_ids                  # drop the changed param
+        
+        drop_idx = torch.where(use_informed, informed_drop, random_drop)
         mask     = F.one_hot(drop_idx, fd + 1).bool()
 
         for j in range(fd):

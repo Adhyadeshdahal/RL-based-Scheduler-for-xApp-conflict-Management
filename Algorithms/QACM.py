@@ -9,6 +9,7 @@ class QACM:
         self.num_bins   = env.num_bins
         self.num_params = env.num_params
         self.action_space = env.action_space  # [num_params-1, num_bins-1, num_bins-1]
+        self.name = "QACM"
 
     def compute_utility(self, xapp, kpis):
         return xapp.compute_utility(kpis)
@@ -68,6 +69,6 @@ class QACM:
                 f_cost = cost.sum() - (s.sum()) ** 2
                 if f_cost < min_cost:
                     min_cost = f_cost
-                    pl_opt   = action  # [pi, bin_id, index]
+                    pl_opt   = action 
 
-        return pl_opt  # full action tuple to pass directly to env.step()
+        return pl_opt  
