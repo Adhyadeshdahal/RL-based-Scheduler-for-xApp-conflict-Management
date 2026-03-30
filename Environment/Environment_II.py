@@ -304,7 +304,7 @@ class ORANEnvironment2(gym.Env):
         self.num_bins = num_bins
         self.action_dim = 3
         self.min_bin_length = int(np.min([param[1]-param[0] for param in self.paramThresholds]) // self.num_bins)
-        self.max_bin_length = int([param[1]-param[0] for param in self.paramThresholds] // self.num_bins) 
+        self.max_bin_length = int(np.max([param[1]-param[0] for param in self.paramThresholds]) // self.num_bins)
         self.action_space = [self.num_params-1, self.num_bins-1, self.max_bin_length-1]
 
         self.max_steps = max_steps
