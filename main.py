@@ -10,6 +10,9 @@ import os
 from Parameters import *
 from Models import get_model
 
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+
 def state_to_tensor(state_dict):
     kpi, param = [], []
     for key in sorted(state_dict.keys()):
@@ -78,8 +81,8 @@ def main():
 
     model = get_model(env)
 
-    if not IS_TRAIN:
-        model.load_model()
+    if not IS_TRAIN or IS_TEST:
+        model.load_model(MODEL_LOAD_NAME)
 
     train_buffer = ReplayBufferDataset(state_dim, action_dim)
     test_buffer = ReplayBufferDataset(state_dim,action_dim)
@@ -148,14 +151,15 @@ def main():
             )
 
         if (step % PLOT_FREQ == 0):
-            if USE_MLP:
-                s_b,a_b,s_1b = test_buffer.sample(TEST_BATCH_SIZE)
-                s_b,a_b,s_1b = s_b.float().to(DEVICE),a_b.float().reshape(-1,action_dim).to(DEVICE),s_1b.float().to(DEVICE)
-                mse = model.evaluatePredictions(s_b,a_b,s_1b)
-                print("Next Step Prediction MSE: ",mse)
-                writer.add_scalar("Predictions/MSE",mse,step)
 
             if USE_CMI:
+                if len(test_buffer)>=TEST_BATCH_SIZE:
+                    s_b,a_b,s_1b = test_buffer.sample(TEST_BATCH_SIZE)
+                    s_b,a_b,s_1b = s_b.float().to(DEVICE),a_b.float().reshape(-1,action_dim).to(DEVICE),s_1b.float().to(DEVICE)
+                    mse = model.evaluatePredictions(s_b,a_b,s_1b)
+                    print("Next Step Prediction MSE: ",mse)
+                    writer.add_scalar("Predictions/MSE",mse,step)
+
                 pred = model.get_binary_graph()[:, :-1].cpu().detach().numpy()
                 gt   = ground_truth_causal_graph
 

@@ -32,7 +32,7 @@ def compute_Xapp3_utility(kpis):
     return compute_utility_value(kpis[2],MEAN_STD_KPIS[2])
 
 def compute_Xapp4_utility(kpis):
-    return compute_utility_value((kpis[3]+kpis[4])/2,MEAN_STD_KPIS[3])
+    return compute_utility_value((kpis[3]+kpis[4])/2,((MEAN_STD_KPIS[3][0]+MEAN_STD_KPIS[4][0])/2, (MEAN_STD_KPIS[3][1]+MEAN_STD_KPIS[4][1])/2))
 
 def compute_Xapp5_utility(kpis):
     return compute_utility_value(kpis[5],MEAN_STD_KPIS[5])
@@ -144,7 +144,7 @@ def update_Kpi1(prev_params, prev_kpis):
     P1 = prev_params[0]
     P2 = safe_exp(prev_params[1])
     
-    return 80 * exp(-(P1+50) ** 2 / (2 * (P2 ** 2)))
+    return 80 * exp(-(P1) ** 2 / (2 * (P2 ** 2)))
     # return 10 * exp(-(P1+1) ** 2 / (2 * (P2 ** 2)))
 
 
@@ -207,7 +207,7 @@ class ORANEnvironment2(gym.Env):
         super().__init__()
 
         setParamFns = [set_param1,set_param2,set_param3,set_param4,set_param5,set_param6,set_param7,set_param8]
-        self.paramThresholds = ParamThresholds = [(-100,100),(-10,50),(-20,20),(-60,60),(-20,20),(-50,150),(-60,65),(-100,150)]
+        self.paramThresholds = ParamThresholds = [(-100,100),(-10,50),(-20,-19),(60,61),(-20,-19),(-50,150),(60,61),(-100,150)]
         # ParamThresholds = [(0,3),(0,3),(0,3),(0,3),(0,3),(0,3),(0,3),(0,3)]
 
         kpi_thresholds = KPI_THRESHOLDS
@@ -304,8 +304,9 @@ class ORANEnvironment2(gym.Env):
         self.num_bins = num_bins
         self.action_dim = 3
         self.min_bin_length = int(np.min([param[1]-param[0] for param in self.paramThresholds]) // self.num_bins)
-        self.max_bin_length = int(np.max([param[1]-param[0] for param in self.paramThresholds]) // self.num_bins)
-        self.action_space = [self.num_params-1, self.num_bins-1, self.max_bin_length-1]
+        # self.max_bin_length = int(np.max([param[1]-param[0] for param in self.paramThresholds]) // self.num_bins)
+        self.bin_length_per_param = [int((param[1]-param[0]) // self.num_bins) for param in self.paramThresholds]
+        self.action_space = [self.num_params-1, self.num_bins-1]+ self.bin_length_per_param
 
         self.max_steps = max_steps
         self.cur_step = 0
@@ -369,8 +370,8 @@ class ORANEnvironment2(gym.Env):
         param_0, param_1 = self.paramThresholds[param_id]
         bin_length = (param_1 - param_0) / self.num_bins  # actual bin length for THIS param
     
-        # scale index from [0, num_bins-1] → [0, bin_length]
-        offset = (index / (self.num_bins - 1)) * bin_length
+        # index is in [0, bin_length_per_param] — direct offset in param units
+        offset = index
 
         low, high = self.params[param_id].get_threshold()
         value = low + (high - low) * (bin_id / (self.num_bins - 1)) + offset
@@ -402,7 +403,7 @@ class ORANEnvironment2(gym.Env):
             # state[f"param{i}"] = np.array([val], dtype=np.float32)
             low, high = self.params[i].get_threshold()
             
-            normalized = (val - low) / (high - low)
+            normalized = (val - low) / (high - low) if high != low else 1  # avoid division by zero if thresholds are the same
             # normalized = val
             state[f"param{i}"] = np.array([normalized], dtype=np.float32)
 
@@ -431,3 +432,41 @@ class ORANEnvironment2(gym.Env):
     
     def get_action_dim(self):
         return self.action_dim
+    
+    def action_to_param(self, action):
+        param_id, bin_id, index = action
+
+        low, high = self.paramThresholds[param_id]
+
+        # bin position [0, num_bins-1]
+        base = low + (high - low) * (bin_id / (self.num_bins - 1))
+
+        # index is in [0, bin_length_per_param[param_id]] — direct offset in param units
+        offset = index
+
+        value = base + offset
+
+        # clip (important for safety)
+        value = np.clip(value, low, high)
+
+        return param_id, value
+
+
+    
+    def get_utility_fns(self):
+        fns = []
+
+        for i, xapp in enumerate(self.xapps):
+            def make_fn(i):
+                def fn(params):
+                    kpis = [0.0] * self.num_kpis
+                    for j, kpi in enumerate(self.kpis):
+                        kpis[j] = kpi.updatefn(params, kpis)
+                    return self.xapps[i].compute_utility(kpis)
+                return fn
+            fns.append(make_fn(i))
+
+        return fns
+    
+    def get_thresholds_stds(self):
+         return KPI_THRESHOLDS,MEAN_STD_KPIS

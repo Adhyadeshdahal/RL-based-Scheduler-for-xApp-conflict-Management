@@ -17,3 +17,4 @@ groundTruth.py
 rslts/*
 Tests/*
 *.pt
+*.pdf
