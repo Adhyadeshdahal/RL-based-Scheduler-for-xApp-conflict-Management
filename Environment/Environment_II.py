@@ -367,17 +367,18 @@ class ORANEnvironment2(gym.Env):
     def step(self, action: Tuple[int,int,int]):
 
         param_id, bin_id, index = action[0], action[1], action[2]
-        param_0, param_1 = self.paramThresholds[param_id]
+        param_id,bin_id,index = int(param_id), int(bin_id), int(index)
+        param_0, param_1 = self.paramThresholds[int(param_id)]
         bin_length = (param_1 - param_0) / self.num_bins  # actual bin length for THIS param
     
         # index is in [0, bin_length_per_param] — direct offset in param units
         offset = index
 
-        low, high = self.params[param_id].get_threshold()
+        low, high = self.params[int(param_id)].get_threshold()
         value = low + (high - low) * (bin_id / (self.num_bins - 1)) + offset
         # value = low + (high - low) * (bin_id / (self.num_bins - 1))
 
-        self.params[param_id].set_param(value, self.params)
+        self.params[int(param_id)].set_param(value, self.params)
         new_params = [p.get_param() for p in self.params]
 
         # Update KPIs
