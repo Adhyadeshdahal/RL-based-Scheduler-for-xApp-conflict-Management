@@ -2,13 +2,13 @@
 import torch
 from datetime import datetime
 
-SEED = 500
-IS_TRAIN  =  False # Set to False for evaluation only
-IS_TEST   =  True # Set to True for testing with a smaller number of steps
-USE_CMI = True # Set to True to use CMI-based model, False to use MLP-based model
+SEED = 50000
+IS_TRAIN  =   False# Set to False for evaluation only
+IS_TEST   =  not IS_TRAIN # Set to True for testing with a smaller number of steps
+USE_CMI = False # Set to True to use CMI-based model, False to use MLP-based model
 USE_MLP = not USE_CMI
 TEST_BATCH_SIZE = 10 # Used to test the model with mse loss, this denotes the batch size for testing, set to 1 for testing with mse loss for 1 sample
-ENVIRONMENT = "EnvironmentII" #or "EnvironmentI" | "EnvironmentII"
+ENVIRONMENT = "EnvironmentI" #or "EnvironmentI" | "EnvironmentII"
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 RUN_NAME = f"{ENVIRONMENT}-{timestamp}"
@@ -16,7 +16,7 @@ RUN_NAME = f"{ENVIRONMENT}-{timestamp}"
 TOTAL_STEPS              = 50000 #Total steps for training the model
 INIT_STEPS               = 4000    # No of steps that uses random exploration only
 MODEL_BASED_START        = 50000   # No of steps after which it uses model based policy for exploration switch from random to model-based.Setting it to 20k effectively ensures random exploration only.
-INFERENCE_GRADIENT_STEPS = 1 #No of steps used by model based cem planner to converge to the value
+INFERENCE_GRADIENT_STEPS = 1 
 BATCH_SIZE               = 128
 PLOT_FREQ                = 500
 EVAL_STEPS               = 10

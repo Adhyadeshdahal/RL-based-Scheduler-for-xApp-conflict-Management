@@ -12,6 +12,7 @@ from Models import get_model
 
 np.random.seed(SEED)
 torch.manual_seed(SEED)
+IS_TRAIN = True
 
 def state_to_tensor(state_dict):
     kpi, param = [], []

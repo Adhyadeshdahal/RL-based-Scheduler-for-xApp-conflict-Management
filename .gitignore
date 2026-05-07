@@ -18,3 +18,9 @@ rslts/*
 Tests/*
 *.pt
 *.pdf
+
+# Ignore all PNG files
+*.png
+
+# Except the README image
+!conflict_resolution_techniques.png

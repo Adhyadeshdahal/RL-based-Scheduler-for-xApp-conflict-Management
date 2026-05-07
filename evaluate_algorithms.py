@@ -30,6 +30,8 @@ from Models import get_model
 
 SEED      = 500
 NUM_STEPS = 100
+IS_TRAIN  = False
+IS_TRAIN = True   # Set to False to run evaluation without training loop (if needed)
 
 XAPP_COLORS = [
     "#E91E8C",
@@ -269,7 +271,7 @@ def main():
 
     tag_suffix = "CMI" if USE_CMI else "MLP"
     timestamp  = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir    = f"runs/evaluate_{tag_suffix}_{timestamp}"
+    run_dir    = f"runs/{ENVIRONMENT}/evaluate_{tag_suffix}_{timestamp}"
     writer     = SummaryWriter(log_dir=run_dir)
 
     print(f"TensorBoard logging to:  {run_dir}")
