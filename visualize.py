@@ -16,6 +16,7 @@ def main():
     model = get_model(env)
     
     model.load_model(MODEL_LOAD_NAME)
+    model.visualize_cmi_heatmap()
     model.visualize_causal_graph()
 
 if __name__ == "__main__":

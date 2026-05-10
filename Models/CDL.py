@@ -325,3 +325,56 @@ class CDL:
         plt.tight_layout()
         plt.show()
 
+    def visualize_cmi_heatmap(self):
+        import matplotlib.pyplot as plt
+        import matplotlib.widgets as widgets
+        import numpy as np
+
+        cmi = self.get_causal_graph().cpu().numpy()
+        fd = cmi.shape[0]
+
+        for i in range(fd):
+            cmi[i, i] = 0.0
+
+        fig, axes = plt.subplots(1, 2, figsize=(18, 6))
+        plt.subplots_adjust(bottom=0.25)
+
+        im = axes[0].imshow(cmi, cmap='hot', aspect='auto')
+        axes[0].set_xticks(range(cmi.shape[1]))
+        axes[0].set_yticks(range(fd))
+        axes[0].set_xticklabels(self.node_names + ['action'], rotation=45, ha='right', fontsize=9)
+        axes[0].set_yticklabels(self.node_names, fontsize=9)
+        axes[0].set_title("CMI Heatmap (raw values)")
+        axes[0].set_xlabel("Source")
+        axes[0].set_ylabel("Target")
+        plt.colorbar(im, ax=axes[0])
+
+        binary = (cmi >= self.cmi_threshold).astype(float)
+        im2 = axes[1].imshow(binary, cmap='Blues', aspect='auto', vmin=0, vmax=1)
+        axes[1].set_xticks(range(cmi.shape[1]))
+        axes[1].set_yticks(range(fd))
+        axes[1].set_xticklabels(self.node_names + ['action'], rotation=45, ha='right', fontsize=9)
+        axes[1].set_yticklabels(self.node_names, fontsize=9)
+        title2 = axes[1].set_title(f"Binary Graph (threshold={self.cmi_threshold})")
+        axes[1].set_xlabel("Source")
+        axes[1].set_ylabel("Target")
+        plt.colorbar(im2, ax=axes[1])
+
+        ax_slider = plt.axes([0.25, 0.1, 0.5, 0.03])
+        slider = widgets.Slider(
+            ax_slider, 'Threshold',
+            valmin=0.0, valmax=float(cmi.max()),
+            valinit=self.cmi_threshold, valstep=0.01
+        )
+
+        def update(val):
+            t = slider.val
+            binary = (cmi >= t).astype(float)
+            for i in range(fd):
+                binary[i, i] = 0.0
+            im2.set_data(binary)
+            title2.set_text(f"Binary Graph (threshold={t:.2f})")
+            fig.canvas.draw_idle()
+
+        slider.on_changed(update)
+        plt.show()
