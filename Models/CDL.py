@@ -190,8 +190,10 @@ class CDL:
     def get_causal_graph(self):
         return self.mask_CMI
 
-    def get_binary_graph(self):
-        graph = (self.mask_CMI >= self.cmi_threshold)
+    def get_binary_graph(self, threshold=None):
+        if threshold is None:
+            threshold = self.cmi_threshold
+        graph = (self.mask_CMI >= threshold)
         fd = graph.shape[0]
         if graph.shape[1] > fd:
             graph[:fd, :fd].fill_diagonal_(0)
@@ -263,7 +265,7 @@ class CDL:
 
 
     def visualize_causal_graph(self, threshold=None):
-        graph = self.get_binary_graph()
+        graph = self.get_binary_graph(threshold=threshold).cpu().numpy()
         fd = graph.shape[0]
         G = nx.DiGraph()
         G.add_nodes_from(range(fd))
@@ -337,7 +339,7 @@ class CDL:
             cmi[i, i] = 0.0
 
         fig, axes = plt.subplots(1, 2, figsize=(18, 6))
-        plt.subplots_adjust(bottom=0.25)
+        plt.subplots_adjust(bottom=0.3)
 
         im = axes[0].imshow(cmi, cmap='hot', aspect='auto')
         axes[0].set_xticks(range(cmi.shape[1]))
@@ -360,12 +362,15 @@ class CDL:
         axes[1].set_ylabel("Target")
         plt.colorbar(im2, ax=axes[1])
 
-        ax_slider = plt.axes([0.25, 0.1, 0.5, 0.03])
+        ax_slider = plt.axes([0.25, 0.12, 0.5, 0.03])
         slider = widgets.Slider(
             ax_slider, 'Threshold',
             valmin=0.0, valmax=float(cmi.max()),
             valinit=self.cmi_threshold, valstep=0.01
         )
+
+        ax_button = plt.axes([0.45, 0.04, 0.1, 0.04])
+        button = widgets.Button(ax_button, 'Confirm')
 
         def update(val):
             t = slider.val
@@ -376,5 +381,15 @@ class CDL:
             title2.set_text(f"Binary Graph (threshold={t:.2f})")
             fig.canvas.draw_idle()
 
+        cmi_thres = self.cmi_threshold
+        def confirm(event):
+            nonlocal cmi_thres
+            cmi_thres = slider.val
+            plt.close(fig)
+
         slider.on_changed(update)
+        button.on_clicked(confirm)
+
         plt.show()
+        print(f"Selected CMI Threshold: {cmi_thres:.2f}")
+        return cmi_thres
