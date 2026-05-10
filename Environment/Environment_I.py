@@ -297,6 +297,9 @@ class ORANEnvironment(gym.Env):
             state[kpi.name] = np.array([val], dtype=np.float32)
         return state
 
+    def get_state(self):
+        return self._get_state()
+
     def observation_spec(self):
         return self._get_state()
 

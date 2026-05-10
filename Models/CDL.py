@@ -4,6 +4,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 from torch.distributions import Normal
+import networkx as nx
+import matplotlib.pyplot as plt
 
 
 class MLP(nn.Module):
@@ -65,7 +67,6 @@ class StatePredictor(nn.Module):
 
         return mu, std
 
-
 class CDL:
 
     def __init__(
@@ -81,6 +82,7 @@ class CDL:
         eval_steps=10,
         grad_clip=10.0,
         device=None,
+        node_names=None
     ):
         self.state_dim     = state_dim
         self.action_dim    = action_dim
@@ -89,6 +91,7 @@ class CDL:
         self.eval_steps    = eval_steps
         self.grad_clip     = grad_clip
         self.kpi_start = kpi_start
+        self.node_names = node_names
 
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -257,3 +260,68 @@ class CDL:
         self.mask_CMI = state['mask_CMI']
         self._eval_cmi_acc = state['eval_cmi_acc']
         self._eval_step_count = state['eval_step_count']
+
+
+    def visualize_causal_graph(self, threshold=None):
+        graph = self.get_binary_graph()
+        fd = graph.shape[0]
+        G = nx.DiGraph()
+        G.add_nodes_from(range(fd))
+
+        for i in range(fd):
+            for j in range(fd):
+                if graph[i, j]:
+                    G.add_edge(j, i)
+
+        ncp_nodes = list(range(self.kpi_start))
+        kpi_nodes = list(range(self.kpi_start, fd))
+
+        n_ncp = len(ncp_nodes)
+        n_kpi = len(kpi_nodes)
+
+        pos = {}
+        for idx, node in enumerate(ncp_nodes):
+            pos[node] = (idx * 2.0 / max(n_ncp - 1, 1), 1.0)
+        for idx, node in enumerate(kpi_nodes):
+            pos[node] = (idx * 2.0 / max(n_kpi - 1, 1), 0.0)
+
+        labels = {i: self.node_names[i] for i in range(fd)}
+
+        ncp_to_kpi_edges = [(u, v) for u, v in G.edges() if u in ncp_nodes and v in kpi_nodes]
+        kpi_to_kpi_edges = [(u, v) for u, v in G.edges() if u in kpi_nodes and v in kpi_nodes]
+        ncp_to_ncp_edges = [(u, v) for u, v in G.edges() if u in ncp_nodes and v in ncp_nodes]
+
+        plt.figure(figsize=(12, 6))
+
+        nx.draw_networkx_nodes(G, pos, nodelist=ncp_nodes, node_color='#AED6F1',
+                            node_size=1200, edgecolors='#2E86C1', linewidths=2)
+        nx.draw_networkx_nodes(G, pos, nodelist=kpi_nodes, node_color='#FADBD8',
+                            node_size=1200, edgecolors='#E74C3C', linewidths=2)
+
+        nx.draw_networkx_labels(G, pos, labels=labels, font_size=10)
+
+        nx.draw_networkx_edges(G, pos, edgelist=ncp_to_kpi_edges, edge_color='gray',
+                            arrows=True, arrowsize=15)
+        nx.draw_networkx_edges(G, pos, edgelist=kpi_to_kpi_edges, edge_color='#A569BD',
+                            arrows=True, arrowsize=15, style='dashed',
+                            connectionstyle='arc3,rad=0.3')
+        nx.draw_networkx_edges(G, pos, edgelist=ncp_to_ncp_edges, edge_color='#2E86C1',
+                            arrows=True, arrowsize=15,
+                            connectionstyle='arc3,rad=0.3')
+
+        legend_elements = [
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#AED6F1',
+                    markeredgecolor='#2E86C1', markersize=12, label='NCP (Control)'),
+            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#FADBD8',
+                    markeredgecolor='#E74C3C', markersize=12, label='KPI (Metric)'),
+            plt.Line2D([0], [0], color='gray', label='NCP→KPI'),
+            plt.Line2D([0], [0], color='#A569BD', linestyle='dashed', label='KPI→KPI Implicit'),
+            plt.Line2D([0], [0], color='#2E86C1', label='NCP→NCP'),
+        ]
+        plt.legend(handles=legend_elements, loc='lower center', ncol=5, frameon=True)
+
+        plt.title("Causal Graph")
+        plt.axis('off')
+        plt.tight_layout()
+        plt.show()
+

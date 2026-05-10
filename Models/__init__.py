@@ -2,6 +2,16 @@ from Models.CDL import CDL
 from Models.MLP import MLPInference
 from Parameters import *
 
+def nodeNames(env):
+    state_dict = env.get_state()
+    kpi, param = [], []
+    for key in sorted(state_dict.keys()):
+        if "param" in key:
+            param.append(key)
+        elif "kpi" in key:
+            kpi.append(key)
+    return param + kpi
+
 def get_model(env):
     state_dim = env.get_state_dim()
     action_dim = env.get_action_dim()
@@ -17,7 +27,8 @@ def get_model(env):
             generative_fc_dims=GENERATIVE_FC_DIMS,
             feature_fc_dims=FEATURE_FC_DIMS,
             lr=1e-3,
-            kpi_start=env.num_params
+            kpi_start=env.num_params,
+            node_names=nodeNames(env)
         )
     elif USE_MLP:
         model = MLPInference(
@@ -30,7 +41,8 @@ def get_model(env):
         generative_fc_dims=GENERATIVE_FC_DIMS,
         feature_fc_dims=FEATURE_FC_DIMS,
         lr=1e-3,
-        kpi_start=env.num_params
+        kpi_start=env.num_params,
+        node_names=nodeNames(env)
     )
     
     return model

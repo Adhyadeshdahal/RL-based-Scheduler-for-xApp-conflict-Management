@@ -37,6 +37,7 @@ class MLPInference:
         eval_steps=10,
         grad_clip=10.0,
         device=None,
+        node_names=None
     ):
         self.state_dim     = state_dim
         self.action_dim    = action_dim
