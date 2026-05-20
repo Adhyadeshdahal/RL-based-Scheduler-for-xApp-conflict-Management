@@ -2,14 +2,21 @@ import numpy as np
 import gym
 from typing import List, Callable, Tuple
 from math import exp
-
-KPI_THRESHOLDS = [0.2, 0.6, 0.5, 0.5]
+# ToDo: change the mean_std_kpis
+KPI_THRESHOLDS = [0.2, 0.6, 0.5, 0.5] 
 MEAN_STD_KPIS  = [
-    (0.26496,  0.183346),
-    (0.041289, 0.193673),
-    (0.499688, 0.363214),
-    (0.554036, 0.368684),
+    (0.205975,  0.170440),
+    (0.012540, 0.093342),
+    (0.481368, 0.364634),
+    (0.528878, 0.371905),
 ]
+# KPI_THRESHOLDS = [0.2, 0.6, 0.5, 0.5]
+# MEAN_STD_KPIS  = [
+#     (0.26496,  0.183346),
+#     (0.041289, 0.193673),
+#     (0.499688, 0.363214),
+#     (0.554036, 0.368684),
+# ]
 
 
 class XApp:

@@ -3,14 +3,9 @@ from Models.MLP import MLPInference
 from Parameters import *
 
 def nodeNames(env):
-    state_dict = env.get_state()
-    kpi, param = [], []
-    for key in sorted(state_dict.keys()):
-        if "param" in key:
-            param.append(key)
-        elif "kpi" in key:
-            kpi.append(key)
-    return param + kpi
+    params = [f"param{i}" for i in range(env.num_params)]
+    kpis = [kpi.name for kpi in env.kpis]
+    return params + kpis
 
 def get_model(env):
     state_dim = env.get_state_dim()

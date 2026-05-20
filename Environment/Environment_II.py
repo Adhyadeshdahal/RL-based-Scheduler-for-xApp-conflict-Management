@@ -207,7 +207,17 @@ class ORANEnvironment2(gym.Env):
         super().__init__()
 
         setParamFns = [set_param1,set_param2,set_param3,set_param4,set_param5,set_param6,set_param7,set_param8]
-        self.paramThresholds = ParamThresholds = [(-100,100),(-10,50),(-20,-19),(60,61),(-20,-19),(-50,150),(60,61),(-100,150)]
+        # self.paramThresholds = ParamThresholds = [(-100,100),(-10,50),(-20,-19),(60,61),(-20,-19),(-50,150),(60,61),(-100,150)]
+        self.paramThresholds = ParamThresholds = [
+                                                    (-100, 100),
+                                                    (-10, 50),
+                                                    (-20, 20),
+                                                    (-60, 60),
+                                                    (-20, 20),
+                                                    (-50, 150),
+                                                    (-60, 65),
+                                                    (-100, 150),
+                                                ]
         # ParamThresholds = [(0,3),(0,3),(0,3),(0,3),(0,3),(0,3),(0,3),(0,3)]
 
         kpi_thresholds = KPI_THRESHOLDS
