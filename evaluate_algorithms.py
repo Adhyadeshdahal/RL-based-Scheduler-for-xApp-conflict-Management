@@ -29,7 +29,7 @@ from Environment import get_env
 from Models import get_model
 
 SEED      = 500
-NUM_STEPS = 100
+NUM_STEPS = 47
 IS_TRAIN  = False
 IS_TRAIN = True   # Set to False to run evaluation without training loop (if needed)
 
