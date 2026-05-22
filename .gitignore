@@ -24,3 +24,4 @@ rslts/*
 # Except the README image
 !conflict_resolution_techniques.png
 
+runs/*
