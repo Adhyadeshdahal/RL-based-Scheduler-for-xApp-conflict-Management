@@ -105,12 +105,12 @@ ENVIRONMENT_I_PARAM_RANGES = []
 
 if IS_TEST:
     ENVIRONMENT_I_PARAM_RANGES = [
-        (-300, 0),  # P1
-        (300, 500),  # P2
+        (-100, 100),  # P1
+        (100, 200),  # P2
         (-10, 10),    # P3
-        (3, 4),    # P4
-        (30, 43),    # P5
-        (0, 3),    # P6
+        (0, 3),    # P4
+        (0, 3),    # P5
+        (4, 50),    # P6
         (-10, 70),    # P7
     ]
     ENVIRONMENT_I_MEAN_STDS = get_envI_mean_std(ENVIRONMENT_I_PARAM_RANGES, seed=SEED)
