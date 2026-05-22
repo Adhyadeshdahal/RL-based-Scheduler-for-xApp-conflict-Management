@@ -1,4 +1,4 @@
-# RL-Based Scheduler for xApp Conflict Management in O-RAN
+# CDD O-RAN: Causal Discovery-Driven Model-Based Planning for xApp Conflict Mitigation in O-RAN
 
 This repository contains the framework for resolving configuration conflicts between multiple xApps in the Near-Real-Time RIC of an O-RAN architecture. The framework leverages **Causal Discovery Learning (CDL)** to detect direct, indirect, and implicit conflicts and **Model-Based Planning Algorithms** to dynamically resolve them while optimizing for multiple Key Performance Indicators (KPIs).
 
