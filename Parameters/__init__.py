@@ -8,7 +8,8 @@ IS_TEST   =  not IS_TRAIN # Set to True for testing with a smaller number of ste
 USE_CMI = True #  to True to use CMI-based model, False to use MLP-based model
 USE_MLP = not USE_CMI
 TEST_BATCH_SIZE = 10 # Used to test the model with mse loss, this denotes the batch size for testing, set to 1 for testing with mse loss for 1 sample
-ENVIRONMENT = "EnvironmentII" #or "EnvironmentI" | "EnvironmentII"
+ENVIRONMENT = "EnvironmentI" #or "EnvironmentI" | "EnvironmentII"
+NUM_STEPS = 10
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 RUN_NAME = f"{ENVIRONMENT}-{timestamp}"
