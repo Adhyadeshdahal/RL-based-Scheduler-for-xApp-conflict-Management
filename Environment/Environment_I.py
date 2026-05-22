@@ -2,21 +2,10 @@ import numpy as np
 import gym
 from typing import List, Callable, Tuple
 from math import exp
-# ToDo: change the mean_std_kpis
+from Parameters import ENVIRONMENT_I_MEAN_STDS,ENVIRONMENT_I_PARAM_RANGES
 KPI_THRESHOLDS = [0.2, 0.6, 0.5, 0.5] 
-MEAN_STD_KPIS  = [
-    (0.205975,  0.170440),
-    (0.012540, 0.093342),
-    (0.481368, 0.364634),
-    (0.528878, 0.371905),
-]
-# KPI_THRESHOLDS = [0.2, 0.6, 0.5, 0.5]
-# MEAN_STD_KPIS  = [
-#     (0.26496,  0.183346),
-#     (0.041289, 0.193673),
-#     (0.499688, 0.363214),
-#     (0.554036, 0.368684),
-# ]
+MEAN_STD_KPIS  = ENVIRONMENT_I_MEAN_STDS
+
 
 
 class XApp:
@@ -162,7 +151,7 @@ class ORANEnvironment(gym.Env):
     def __init__(self, num_bins=10, max_steps=50):
         super().__init__()
 
-        self.paramThresholds = [(0, 300), (0, 300)] + [(0, 3)] * 5
+        self.paramThresholds = ENVIRONMENT_I_PARAM_RANGES
         setParamFns = [set_param_default] * 7
 
         self.params = [

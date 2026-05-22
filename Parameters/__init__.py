@@ -1,7 +1,7 @@
 #Train Test Environment and method
 import torch
 from datetime import datetime
-from Tests import get_envII_mean_std
+from Tests import get_envII_mean_std,get_envI_mean_std
 
 SEED = 0
 IS_TRAIN  =   False# Set to False for evaluation only
@@ -9,8 +9,8 @@ IS_TEST   =  not IS_TRAIN # Set to True for testing with a smaller number of ste
 USE_CMI = True #  to True to use CMI-based model, False to use MLP-based model
 USE_MLP = not USE_CMI
 TEST_BATCH_SIZE = 10 # Used to test the model with mse loss, this denotes the batch size for testing, set to 1 for testing with mse loss for 1 sample
-ENVIRONMENT = "EnvironmentII" #or "EnvironmentI" | "EnvironmentII"
-NUM_STEPS = 10
+ENVIRONMENT = "EnvironmentI" #or "EnvironmentI" | "EnvironmentII"
+NUM_STEPS = 10 # Number of steps to run in test mode, set to 10 for quick testing, increase for more thorough evaluation
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 RUN_NAME = f"{ENVIRONMENT}-{timestamp}"
@@ -59,6 +59,8 @@ CDL_LOAD_NAME = f"CMI-{ENVIRONMENT}_model.pt"
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+#                                   ENVIRONMENT II
+
 ENVIRONMENT_II_MEAN_STDS = []
 ENVIRONMENT_II_PARAM_RANGES = []
 if IS_TEST:
@@ -72,11 +74,11 @@ if IS_TEST:
                                     (66, 87),
                                     (-200, 150),
                                 ]
-    
-
     ENVIRONMENT_II_MEAN_STDS = get_envII_mean_std(ENVIRONMENT_II_PARAM_RANGES, seed=SEED)
-    print(f"ENVIRONMENT_II_PARAM_RANGES: {ENVIRONMENT_II_PARAM_RANGES}")
-    print(f"ENVIRONMENT_II_MEAN_STDS: {ENVIRONMENT_II_MEAN_STDS}")
+    
+    if ENVIRONMENT == "EnvironmentII":
+        print(f"ENVIRONMENT_II_PARAM_RANGES: {ENVIRONMENT_II_PARAM_RANGES}")
+        print(f"ENVIRONMENT_II_MEAN_STDS: {ENVIRONMENT_II_MEAN_STDS}")
 
 else:
     ENVIRONMENT_II_PARAM_RANGES =    [
@@ -89,8 +91,44 @@ else:
                                         (-60, 65),
                                         (-100, 150),
                                     ]
-    
-
     ENVIRONMENT_II_MEAN_STDS = get_envII_mean_std(ENVIRONMENT_II_PARAM_RANGES, seed=SEED)
-    print(f"ENVIRONMENT_II_MEAN_STDS: {ENVIRONMENT_II_MEAN_STDS}")
-    print(f"ENVIRONMENT_II_PARAM_RANGES: {ENVIRONMENT_II_PARAM_RANGES}")
+    
+    if ENVIRONMENT == "EnvironmentII":
+        print(f"ENVIRONMENT_II_MEAN_STDS: {ENVIRONMENT_II_MEAN_STDS}")
+        print(f"ENVIRONMENT_II_PARAM_RANGES: {ENVIRONMENT_II_PARAM_RANGES}")
+
+
+#                                           ENVIRONMENT I
+
+ENVIRONMENT_I_MEAN_STDS = []
+ENVIRONMENT_I_PARAM_RANGES = []
+
+if IS_TEST:
+    ENVIRONMENT_I_PARAM_RANGES = [
+        (-300, 0),  # P1
+        (300, 500),  # P2
+        (-10, 10),    # P3
+        (3, 4),    # P4
+        (30, 43),    # P5
+        (0, 3),    # P6
+        (-10, 70),    # P7
+    ]
+    ENVIRONMENT_I_MEAN_STDS = get_envI_mean_std(ENVIRONMENT_I_PARAM_RANGES, seed=SEED)
+    if ENVIRONMENT == "EnvironmentI":
+        print(f"ENVIRONMENT_I_PARAM_RANGES: {ENVIRONMENT_I_PARAM_RANGES}")
+        print(f"ENVIRONMENT_I_MEAN_STDS: {ENVIRONMENT_I_MEAN_STDS}")
+
+else:
+    ENVIRONMENT_I_PARAM_RANGES = [
+        (0, 300),  # P1
+        (0, 300),  # P2
+        (0, 3),    # P3
+        (0, 3),    # P4
+        (0, 3),    # P5
+        (0, 3),    # P6
+        (0, 3),    # P7
+    ]
+    ENVIRONMENT_I_MEAN_STDS = get_envI_mean_std(ENVIRONMENT_I_PARAM_RANGES, seed=SEED)
+    if ENVIRONMENT == "EnvironmentI":
+        print(f"ENVIRONMENT_I_PARAM_RANGES: {ENVIRONMENT_I_PARAM_RANGES}")
+        print(f"ENVIRONMENT_I_MEAN_STDS: {ENVIRONMENT_I_MEAN_STDS}")
