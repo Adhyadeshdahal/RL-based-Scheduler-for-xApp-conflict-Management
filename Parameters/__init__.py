@@ -40,7 +40,7 @@ TEMPERATURE = 0.6 # Lower for greedier selection
 NOISE_SIGMA = 0.1 # Added small noise for exploration
 
 #FOR MCTS
-N_SIMULATIONS   = 3000  # Increased for deeper search
+N_SIMULATIONS   = 3  # Increased for deeper search
 USB_C = 1.5   # Slightly higher for more exploration
 
 
