@@ -15,7 +15,6 @@ inference_cmi.py
 groundTruth.py
 
 rslts/*
-Tests/*
 *.pt
 *.pdf
 
@@ -24,3 +23,4 @@ Tests/*
 
 # Except the README image
 !conflict_resolution_techniques.png
+

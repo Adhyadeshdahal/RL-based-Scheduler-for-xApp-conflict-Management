@@ -20,8 +20,7 @@ class QACM:
         # xapp.threshold is a raw KPI value; normalise it before comparing.
         # Compare utility (z-score) against the normalised threshold.
         # Since env sets xapp.threshold = KPI_THRESHOLDS[i] (raw), we normalise here.
-        kpi_idx = self.env.xapps.index(xapp)
-        mean, std = self.env.kpis[kpi_idx].mean, self.env.kpis[kpi_idx].std
+        mean, std = xapp.mean, xapp.std
         norm_threshold = (xapp.threshold - mean) / std
 
         d, s = 0, 0

@@ -20,13 +20,16 @@ MEAN_STD_KPIS  = [
 
 
 class XApp:
-    def __init__(self, threshold, utility_fn, name, params, direction=0):
+    def __init__(self, threshold, utility_fn, name, params, direction=0, mean_std=None):
         self.thresholds      = threshold
         self.threshold       = threshold
         self.compute_utility = utility_fn
         self.name            = name
         self.params          = params
         self.direction       = direction
+        if mean_std:
+            self.mean = mean_std[0]
+            self.std  = mean_std[1]
 
 
 def compute_utility_value(value, mean_std):
@@ -206,6 +209,7 @@ class ORANEnvironment(gym.Env):
                 name       = xapp_names[i],
                 params     = xapp_params[i],
                 direction  = direction[i],
+                mean_std   = MEAN_STD_KPIS[i],
             )
             for i in range(4)
         ]
@@ -346,3 +350,9 @@ class ORANEnvironment(gym.Env):
 
     def get_thresholds_stds(self):
         return KPI_THRESHOLDS, MEAN_STD_KPIS
+
+    def get_kpi_to_xapp_mapping(self):
+        mapping = {}
+        for i in range(self.num_kpis):
+            mapping[self.num_params + i] = i
+        return mapping

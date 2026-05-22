@@ -2,19 +2,21 @@ import numpy as np
 import gym
 from typing import List, Callable, Tuple
 from math import exp
+from Parameters import ENVIRONMENT_II_MEAN_STDS,ENVIRONMENT_II_PARAM_RANGES
 KPI_THRESHOLDS = [55, 95, 85, 75, 80, -25]
-MEAN_STD_KPIS = [(21.066, 27.599), (26.213, 34.671), 
-                       (72.769, 39.040), (30.815, 40.555), 
-                       (39.930, 52.155), (-17.803, 12.519)]
+MEAN_STD_KPIS = ENVIRONMENT_II_MEAN_STDS
 
 class XApp:
-     def __init__(self,threshold,utility_fn,name,params,direction):
+     def __init__(self,threshold,utility_fn,name,params,direction, mean_std=None):
           self.thresholds = threshold
           self.threshold = threshold
           self.compute_utility = utility_fn
           self.name = name
           self.params = params
           self.direction = direction
+          if mean_std:
+              self.mean = mean_std[0]
+              self.std = mean_std[1]
           
 
 def compute_utility_value(value,mean_std):
@@ -208,16 +210,7 @@ class ORANEnvironment2(gym.Env):
 
         setParamFns = [set_param1,set_param2,set_param3,set_param4,set_param5,set_param6,set_param7,set_param8]
         # self.paramThresholds = ParamThresholds = [(-100,100),(-10,50),(-20,-19),(60,61),(-20,-19),(-50,150),(60,61),(-100,150)]
-        self.paramThresholds = ParamThresholds = [
-                                                    (-100, 100),
-                                                    (-10, 50),
-                                                    (-20, 20),
-                                                    (-60, 60),
-                                                    (-20, 20),
-                                                    (-50, 150),
-                                                    (-60, 65),
-                                                    (-100, 150),
-                                                ]
+        self.paramThresholds = ParamThresholds = ENVIRONMENT_II_PARAM_RANGES
         # ParamThresholds = [(0,3),(0,3),(0,3),(0,3),(0,3),(0,3),(0,3),(0,3)]
 
         kpi_thresholds = KPI_THRESHOLDS
@@ -227,8 +220,31 @@ class ORANEnvironment2(gym.Env):
         updateKPIFns = [update_Kpi1, update_Kpi2, update_Kpi3, update_Kpi41, update_Kpi42, update_Kpi5]
         meanStdKPIs = MEAN_STD_KPIS
         xapp_utility_fns = [compute_Xapp1_utility,compute_Xapp2_utility,compute_Xapp3_utility,compute_Xapp4_utility,compute_Xapp5_utility]
-        xapp_thresholds = KPI_THRESHOLDS
         xapp_names = [f"xApp{i}" for i in range(len(xapp_utility_fns))]
+
+        xapp_thresholds = [
+            KPI_THRESHOLDS[0],
+            KPI_THRESHOLDS[1],
+            KPI_THRESHOLDS[2],
+            (KPI_THRESHOLDS[3]+KPI_THRESHOLDS[4])/2,
+            KPI_THRESHOLDS[5]
+        ]
+        
+        xapp_directions = [
+            direction[0],
+            direction[1],
+            direction[2],
+            direction[3],
+            direction[5]
+        ]
+        
+        xapp_mean_stds = [
+            MEAN_STD_KPIS[0],
+            MEAN_STD_KPIS[1],
+            MEAN_STD_KPIS[2],
+            ((MEAN_STD_KPIS[3][0]+MEAN_STD_KPIS[4][0])/2, (MEAN_STD_KPIS[3][1]+MEAN_STD_KPIS[4][1])/2),
+            MEAN_STD_KPIS[5]
+        ]
 
 
 
@@ -257,7 +273,7 @@ class ORANEnvironment2(gym.Env):
 
 
         self.xapps = [
-             XApp(threshold=xapp_thresholds[i],utility_fn=xapp_utility_fns[i],name=xapp_names[i],params=xapp_params[i],direction=direction[i]) for i,_ in enumerate(xapp_names)
+             XApp(threshold=xapp_thresholds[i],utility_fn=xapp_utility_fns[i],name=xapp_names[i],params=xapp_params[i],direction=xapp_directions[i], mean_std=xapp_mean_stds[i]) for i,_ in enumerate(xapp_names)
         ]
 
                 # ---- TRUE CAUSAL GRAPH (11 x 11) ----
@@ -483,4 +499,29 @@ class ORANEnvironment2(gym.Env):
         return fns
     
     def get_thresholds_stds(self):
-         return KPI_THRESHOLDS,MEAN_STD_KPIS
+         xapp_thresholds = [
+             KPI_THRESHOLDS[0],
+             KPI_THRESHOLDS[1],
+             KPI_THRESHOLDS[2],
+             (KPI_THRESHOLDS[3]+KPI_THRESHOLDS[4])/2,
+             KPI_THRESHOLDS[5]
+         ]
+         xapp_mean_stds = [
+             MEAN_STD_KPIS[0],
+             MEAN_STD_KPIS[1],
+             MEAN_STD_KPIS[2],
+             ((MEAN_STD_KPIS[3][0]+MEAN_STD_KPIS[4][0])/2, (MEAN_STD_KPIS[3][1]+MEAN_STD_KPIS[4][1])/2),
+             MEAN_STD_KPIS[5]
+         ]
+         return xapp_thresholds, xapp_mean_stds
+
+    def get_kpi_to_xapp_mapping(self):
+        mapping = {
+            self.num_params + 0: 0,
+            self.num_params + 1: 1,
+            self.num_params + 2: 2,
+            self.num_params + 3: 3,
+            self.num_params + 4: 3,
+            self.num_params + 5: 4
+        }
+        return mapping

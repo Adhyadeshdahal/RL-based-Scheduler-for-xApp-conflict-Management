@@ -28,11 +28,6 @@ from Parameters import *
 from Environment import get_env
 from Models import get_model
 
-SEED      = 500
-NUM_STEPS = 47
-IS_TRAIN  = False
-IS_TRAIN = True   # Set to False to run evaluation without training loop (if needed)
-
 XAPP_COLORS = [
     "#E91E8C",
     "#00BCD4",
@@ -144,10 +139,12 @@ def detect_conflict_edges(causal_graph, env):
             pid = param2id[p]
             param2xapp.setdefault(pid, []).append(xapp)
 
+    kpi2xapp_mapping = env.get_kpi_to_xapp_mapping()
+    
     edges = []
     for kpi_node in range(num_params, state_dim):
-        primary_xapp_id = kpi_node - num_params
-        if primary_xapp_id >= len(env.xapps):
+        primary_xapp_id = kpi2xapp_mapping.get(kpi_node)
+        if primary_xapp_id is None or primary_xapp_id >= len(env.xapps):
             continue
         for param_id in range(num_params):
             if causal_graph[kpi_node, param_id] != 1:

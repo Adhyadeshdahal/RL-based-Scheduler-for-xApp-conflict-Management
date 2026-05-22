@@ -114,7 +114,7 @@ class ModelBasedCEM:
 
     def _weighted_distance(self, xapp, utility, xapp_idx):
         # FIX 2: normalise raw KPI threshold into z-score space before comparing
-        mean, std  = self.env.kpis[xapp_idx].mean, self.env.kpis[xapp_idx].std
+        mean, std  = xapp.mean, xapp.std
         norm_threshold = (xapp.threshold - mean) / std
 
         if xapp.direction == 0:           # maximise
