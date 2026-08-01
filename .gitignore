@@ -6,10 +6,17 @@ dist/
 wheels/
 *.egg-info
 
+# Tool caches. These self-ignore via a nested .gitignore, but do not rely on that.
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.cache/
+
 # Virtual environments
 .venv
 venv
-.cache/
+
+# Generated experiment output
 results/
 sweeps/
 *.pt
