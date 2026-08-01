@@ -13,8 +13,10 @@ Pipeline
      - Conflict count per step
 """
 
+import logging
 from dataclasses import replace
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -25,6 +27,10 @@ from Algorithms import get_algorithms
 from config import DEFAULT_CONFIG, ExperimentConfig
 from Environment import get_env
 from Models import get_model
+from utils.runs import read_metrics, write_metrics
+from utils.seeding import seed_everything
+
+logger = logging.getLogger(__name__)
 
 XAPP_COLORS = [
     "#E91E8C",
@@ -256,30 +262,42 @@ def draw_panel(
     ax.set_title(title, pad=7)
 
 
-def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
-    np.random.seed(cfg.seed)
-    torch.manual_seed(cfg.seed)
+def main(
+    cfg: ExperimentConfig = DEFAULT_CONFIG,
+    run_dir=None,
+    graph_run=None,
+    graph_cfg=None,
+):
+    if run_dir is None:
+        raise ValueError("An experiment run directory is required")
+
+    seed_everything(cfg.seed, cfg.deterministic)
+    run_dir = Path(run_dir)
+    checkpoint_path = run_dir / "checkpoint.pt"
+
+    if cfg.model_kind == "mlp" and (graph_run is None or graph_cfg is None):
+        raise ValueError("MLP evaluation requires --graph-run pointing to a trained CDL run")
 
     env = get_env(cfg)
     act_dim = env.get_action_dim()
     model = get_model(cfg, env)
 
-    # The graph always comes from the trained causal model, including in MLP mode.
-    cdl_cfg = cfg if cfg.model_kind == "cdl" else replace(cfg, model_kind="cdl")
-    cdl = get_model(cdl_cfg, env)
-    try:
-        cdl.load_model(f"CMI-{cfg.environment}_model.pt")
-    except FileNotFoundError:
-        print("[ERROR] CDL model not found:", f"CMI-{cfg.environment}_model.pt")
-        return -1
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+    model.load_model(checkpoint_path)
 
-    try:
-        model.load_model(
-            f"{'CMI' if cfg.model_kind == 'cdl' else 'MLP'}-{cfg.environment}_model.pt"
-        )
-    except FileNotFoundError:
-        print("[ERROR] Inference model not found")
-        return -1
+    if cfg.model_kind == "cdl":
+        cdl = model
+    else:
+        if graph_cfg.model_kind != "cdl":
+            raise ValueError("--graph-run must contain a CDL configuration")
+        if graph_cfg.environment != cfg.environment:
+            raise ValueError("--graph-run must use the same environment")
+        cdl = get_model(replace(graph_cfg, model_kind="cdl"), env)
+        graph_checkpoint = Path(graph_run) / "checkpoint.pt"
+        if not graph_checkpoint.exists():
+            raise FileNotFoundError(f"Graph checkpoint not found: {graph_checkpoint}")
+        cdl.load_model(graph_checkpoint)
 
     algorithms = get_algorithms(cfg, model, env)
     algo_names = [a.name for a in algorithms]
@@ -287,15 +305,13 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
 
     KPI_THRESHOLDS, MEAN_STD_KPIS = env.get_thresholds_stds()
 
-    tag_suffix = "CMI" if cfg.model_kind == "cdl" else "MLP"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = f"runs/{cfg.environment}/evaluate_{tag_suffix}_{timestamp}"
-    writer = SummaryWriter(log_dir=run_dir)
+    writer = SummaryWriter(log_dir=run_dir / "tensorboard" / f"evaluate-{timestamp}")
 
-    print(f"TensorBoard logging to:  {run_dir}")
-    print(f"Running evaluation for {cfg.num_steps} environment steps ...\n")
+    logger.info("Running evaluation for %d environment steps", cfg.num_steps)
 
     env.reset()
+    all_utilities = {algo.name: [] for algo in algorithms}
 
     for global_step in range(cfg.num_steps):
         state_dict = env.get_state()
@@ -309,9 +325,9 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
         writer.add_scalar("conflicts/count", num_conflicts, global_step)
 
         if num_conflicts == 0:
-            print(f"[step {global_step:4d}]  No conflicts detected.")
+            logger.info("Step %d: no conflicts detected", global_step)
         else:
-            print(f"[step {global_step:4d}]  {num_conflicts} conflict(s) detected.")
+            logger.info("Step %d: %d conflict(s) detected", global_step, num_conflicts)
 
         step_utilities = {algo.name: [] for algo in algorithms}
 
@@ -325,6 +341,7 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
             thresh = param.get_threshold()
 
             num_xapps = len(xapps_in_conflict)
+            # Under review: this currently normalizes every conflict weight back to one.
             weights = np.ones(num_xapps)
             for idx, xapp in enumerate(xapps_in_conflict):
                 if xapp == env.xapps[primary_xapp_id]:
@@ -349,15 +366,21 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
                     u = compute_utility(utility_fns[xid], raw_params, param_id, raw_val)
                     step_utilities[algo.name].append(u)
 
-                print(
-                    f"    [{algo.name:22s}]  "
-                    f"x{primary_xapp_id}→p{param_id}  "
-                    f"action={raw_val:.4f}  "
-                    f"utility(primary)="
-                    f"{compute_utility(utility_fns[primary_xapp_id], raw_params, param_id, raw_val):.4f}"
-                    if primary_xapp_id < len(utility_fns)
-                    else f"    [{algo.name:22s}]  x{primary_xapp_id}→p{param_id}  action={raw_val:.4f}"
-                )
+                if primary_xapp_id < len(utility_fns):
+                    logger.info(
+                        "%s x%d->p%d action=%.4f utility(primary)=%.4f",
+                        algo.name,
+                        primary_xapp_id,
+                        param_id,
+                        raw_val,
+                        compute_utility(
+                            utility_fns[primary_xapp_id], raw_params, param_id, raw_val
+                        ),
+                    )
+                else:
+                    logger.info(
+                        "%s x%d->p%d action=%.4f", algo.name, primary_xapp_id, param_id, raw_val
+                    )
 
         scalars_for_step = {}
         for algo in algorithms:
@@ -365,20 +388,34 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
             if vals:
                 mean_u = float(np.mean(vals))
                 scalars_for_step[algo.name] = mean_u
-                print(f"  [mean utility] {algo.name:22s} → {mean_u:.4f}")
+                all_utilities[algo.name].extend(vals)
+                logger.info("Mean utility %s: %.4f", algo.name, mean_u)
 
         if scalars_for_step:
             writer.add_scalars("mean_utility/all_algorithms", scalars_for_step, global_step)
 
         neutral_action = np.zeros(act_dim)
+        # Intentional for independent conflict evaluation; action proposals are not applied.
         env.step(neutral_action)
 
         writer.flush()
 
     writer.close()
-    print(f"\nDone. Run:  tensorboard --logdir {run_dir}")
+    metrics = read_metrics(run_dir)
+    metrics["evaluation"] = {
+        "planner_mean_utilities": {
+            name: float(np.mean(values)) if values else None
+            for name, values in all_utilities.items()
+        }
+    }
+    write_metrics(run_dir, metrics)
+    logger.info("Evaluation metrics saved to %s", run_dir / "metrics.json")
     return 0
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    from cli import main as cli_main
+
+    raise SystemExit(cli_main(["evaluate", *sys.argv[1:]]))

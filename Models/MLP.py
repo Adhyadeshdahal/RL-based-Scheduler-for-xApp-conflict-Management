@@ -1,3 +1,5 @@
+import logging
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,6 +7,8 @@ import torch.optim as optim
 from torch.distributions import Normal
 
 from Models.base import WorldModel
+
+logger = logging.getLogger(__name__)
 
 
 class MLP(nn.Module):
@@ -120,7 +124,7 @@ class MLPInference(WorldModel):
         target = s_1[:, self.kpi_start :]  # (bs, n_kpis)
         return ((pred - target) ** 2).mean().item()
 
-    def save_model(self, filepath="mlp_model.pt"):
+    def save_model(self, filepath):
         torch.save(
             {
                 "model_state_dict": self.model.state_dict(),
@@ -134,10 +138,10 @@ class MLPInference(WorldModel):
             },
             filepath,
         )
-        print(f"Model saved to {filepath}")
+        logger.info("Model saved to %s", filepath)
 
-    def load_model(self, filepath="mlp_model.pt"):
+    def load_model(self, filepath):
         state = torch.load(filepath, map_location=self.device)
         self.model.load_state_dict(state["model_state_dict"])
         self.opt.load_state_dict(state["optimizer_state_dict"])
-        print(f"Model loaded from {filepath}")
+        logger.info("Model loaded from %s", filepath)

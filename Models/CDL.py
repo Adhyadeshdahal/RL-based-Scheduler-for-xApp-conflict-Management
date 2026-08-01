@@ -229,7 +229,7 @@ class CDL(CausalModel):
         target = s_1[:, self.kpi_start :]  # (bs, state_dim - kpi_start)
         return ((pred - target) ** 2).mean().item()  # scalar
 
-    def save_model(self, filepath="cdl_model.pt"):
+    def save_model(self, filepath):
         """
         Save the model state, optimizer state, and other necessary attributes.
         """
@@ -249,7 +249,7 @@ class CDL(CausalModel):
         }
         torch.save(state, filepath)
 
-    def load_model(self, filepath="cdl_model.pt"):
+    def load_model(self, filepath):
         """
         Load the model state, optimizer state, and other attributes.
         """

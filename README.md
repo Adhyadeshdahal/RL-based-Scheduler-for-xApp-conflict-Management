@@ -25,30 +25,26 @@ In an Open RAN ecosystem, multiple xApps can concurrently subscribe to and manip
 
 ## Execution
 
-The project provides two main entry points depending on whether you are training the generative models or evaluating the conflict mitigation algorithms.
+Use the experiment CLI. Training writes a self-describing run under
+`runs/<environment>/<model_kind>/<timestamp>-<confighash>/` with its resolved config,
+checkpoint, TensorBoard logs, metrics, and git state.
 
-### 1. Training the Models
-To train the CDL components and state-transition models, run:
 ```bash
-python main.py
+uv run python cli.py train --config configs/env_i_cdl.yaml
+uv run python cli.py train --config configs/env_i_cdl.yaml --set train.total_steps=100
+uv run python cli.py evaluate --run runs/EnvironmentI/cdl/<run-id>
+uv run python cli.py viz --run runs/EnvironmentI/cdl/<run-id> --figure cmi-heatmap
 ```
-This script handles the environment interaction loop to gather data and trains the models to accurately predict next-state KPIs and the causal graph.
 
-### 2. Evaluating Conflict Resolution Algorithms
-To test the parameter selection algorithms against simulated conflicts:
-```bash
-python evaluate_algorithms.py
-```
-This script runs a continuous loop over the environment. For each step:
-1. It uses the learned CDL module to detect active conflict edges.
-2. It prompts every registered algorithm in `Algorithms/` to propose a resolution (action).
-3. It evaluates the utility of each algorithm's proposal.
-4. It logs the utility distributions and conflict resolutions directly to TensorBoard for easy comparison.
+MLP evaluation requires a trained CDL run for causal conflict detection:
 
-To visualize the evaluation metrics, run TensorBoard in the project root:
 ```bash
-tensorboard --logdir runs/
+uv run python cli.py evaluate --run runs/EnvironmentI/mlp/<run-id> \
+  --graph-run runs/EnvironmentI/cdl/<cdl-run-id>
 ```
+
+Run `uv run python cli.py --help` for all options. Use TensorBoard with
+`tensorboard --logdir runs/`.
 
 ## Setup & Dependencies
 This project uses **`uv`** for extremely fast and robust dependency management. 
@@ -64,9 +60,6 @@ uv sync
 ```
 
 ## Visualizing the Causal Graph
-You can visualize the learned Conditional Mutual Information (CMI) heatmap and the inferred Causal Graph by running the `visualize.py` script.
 
-```bash
-python visualize.py
-```
-*Note: This script requires `IS_TRAIN` to be set to `False` and `USE_MLP` to be `False` in your `Parameters/__init__.py` configuration, as only the CDL/CMI model produces a causal graph.*
+Only CDL runs expose a causal graph. Use the `viz` command with either
+`causal-graph` or `cmi-heatmap`.

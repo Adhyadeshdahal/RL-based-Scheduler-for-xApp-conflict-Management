@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
 
@@ -63,17 +63,33 @@ class ExperimentConfig:
     param_ranges: Literal["train", "ood"]
     num_steps: int
     device: str
+    deterministic: bool
     model: ModelConfig
     train: TrainConfig
     planner: PlannerConfig
 
 
-def load_config(path) -> ExperimentConfig:
+def load_config(path, overrides=()) -> ExperimentConfig:
     path = Path(path)
     if not path.is_absolute() and not path.exists():
         path = Path(__file__).parent / "configs" / path
     with path.open() as config_file:
         values = yaml.safe_load(config_file)
+
+    for override in overrides:
+        try:
+            key, value = override.split("=", 1)
+        except ValueError as error:
+            raise ValueError(f"Invalid override {override!r}; expected key=value") from error
+        target = values
+        *parents, leaf = key.split(".")
+        for parent in parents:
+            if parent not in target or not isinstance(target[parent], dict):
+                raise ValueError(f"Unknown config path: {key}")
+            target = target[parent]
+        if leaf not in target:
+            raise ValueError(f"Unknown config path: {key}")
+        target[leaf] = yaml.safe_load(value)
 
     device = values["device"]
     if device == "auto":
@@ -86,6 +102,7 @@ def load_config(path) -> ExperimentConfig:
         param_ranges=values["param_ranges"],
         num_steps=values["num_steps"],
         device=device,
+        deterministic=values.get("deterministic", False),
         model=ModelConfig(
             **{
                 **values["model"],
@@ -104,3 +121,7 @@ def load_config(path) -> ExperimentConfig:
 
 
 DEFAULT_CONFIG = load_config("env_i_mlp.yaml")
+
+
+def config_dict(cfg: ExperimentConfig):
+    return asdict(cfg)

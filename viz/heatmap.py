@@ -1,7 +1,11 @@
+import logging
+
 import matplotlib.pyplot as plt
 import matplotlib.widgets as widgets
 
 from Models.base import CausalModel
+
+logger = logging.getLogger(__name__)
 
 
 def _cmi(model: CausalModel):
@@ -79,5 +83,5 @@ def select_cmi_threshold(model: CausalModel):
     slider.on_changed(update)
     button.on_clicked(confirm)
     plt.show()
-    print(f"Selected CMI Threshold: {selected_threshold:.2f}")
+    logger.info("Selected CMI threshold: %.2f", selected_threshold)
     return selected_threshold

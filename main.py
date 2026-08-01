@@ -1,14 +1,19 @@
-import torch
-import numpy as np
-from torch.utils.data import Dataset
-from Environment import get_env
+import logging
 import random
-from Policies.RandomPolicy import RandomPolicy
+
+import numpy as np
+import torch
+from torch.utils.data import Dataset
 from torch.utils.tensorboard import SummaryWriter
-import os
+
+from Environment import get_env
 from Models import get_model
+from Policies.RandomPolicy import RandomPolicy
 from config import DEFAULT_CONFIG, ExperimentConfig
-from datetime import datetime
+from utils.runs import create_run_dir, write_metrics
+from utils.seeding import seed_everything
+
+logger = logging.getLogger(__name__)
 
 
 def state_to_tensor(state_dict):
@@ -43,16 +48,14 @@ class ReplayBufferDataset(Dataset):
         return torch.stack(s), torch.tensor(a), torch.stack(s_next)
 
 
-def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
-    np.random.seed(cfg.seed)
-    torch.manual_seed(cfg.seed)
+def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False, run_dir=None):
+    seed_everything(cfg.seed, cfg.deterministic)
     env = get_env(cfg)
 
     ground_truth_causal_graph = env.true_adj_matrix
-    model_label = "CMI" if cfg.model_kind == "cdl" else "MLP"
-    result_dir = f"rslts/{model_label}/{cfg.environment}-{datetime.now():%Y%m%d_%H%M%S}/"
-
-    writer = SummaryWriter(os.path.join(result_dir, "tensorboard"))
+    run_dir = create_run_dir(cfg) if run_dir is None else run_dir
+    checkpoint_path = run_dir / "checkpoint.pt"
+    writer = SummaryWriter(run_dir / "tensorboard")
 
     state_dim = env.get_state_dim()
     action_dim = env.action_dim
@@ -60,13 +63,11 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
     random_policy = RandomPolicy(action_dim=env.action_dim, action_space=env.action_space)
     model = get_model(cfg, env)
 
-    model_load_name = f"{model_label}-{cfg.environment}_model.pt"
     if resume:
-        if os.path.exists(model_load_name):
-            model.load_model(model_load_name)
-            print(f"[main] Resumed from checkpoint: {model_load_name}")
-        else:
-            print(f"[main] No checkpoint at {model_load_name}; training from scratch.")
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+        model.load_model(checkpoint_path)
+        logger.info("Resumed from checkpoint: %s", checkpoint_path)
 
     train_buffer = ReplayBufferDataset(state_dim, action_dim)
     test_buffer = ReplayBufferDataset(state_dim, action_dim)
@@ -74,6 +75,7 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
     loss = 0.0
     episode_reward = 0
     episode_rewards = []
+    metrics = {"prediction_mse": None}
     for step in range(cfg.train.total_steps):
         action = random_policy.act()
 
@@ -90,7 +92,7 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
         if done:
             obs = env.reset()
             episode_rewards.append(episode_reward)
-            print(f"Episode {len(episode_rewards)} Reward : ", episode_rewards[-1])
+            logger.info("Episode %d reward: %s", len(episode_rewards), episode_rewards[-1])
 
             episode_reward = 0
 
@@ -124,7 +126,8 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
                         s_1b.float().to(cfg.device),
                     )
                     mse = model.evaluatePredictions(s_b, a_b, s_1b)
-                    print("Next Step Prediction MSE: ", mse)
+                    metrics["prediction_mse"] = mse
+                    logger.info("Next-step prediction MSE: %s", mse)
                     writer.add_scalar("Predictions/MSE", mse, step)
 
                 pred = model.get_binary_graph()[:, :-1].cpu().detach().numpy()
@@ -145,12 +148,22 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
                 writer.add_scalar("graph_eval/f1", f1, step)
                 writer.add_scalar("graph_eval/accuracy", accuracy, step)
 
-                print(f"\nStep {step} | Loss: {loss:.4f} | Policy: random")
-                print("Precision:", precision)
-                print("Recall:", recall)
-                print("F1:", f1)
-                print("Accuracy:", accuracy)
-                print("N:", pred.sum())
+                metrics["graph"] = {
+                    "precision": float(precision),
+                    "recall": float(recall),
+                    "f1": float(f1),
+                    "accuracy": float(accuracy),
+                }
+                logger.info(
+                    "Step %d loss=%.4f precision=%s recall=%s f1=%s accuracy=%s edges=%s",
+                    step,
+                    loss,
+                    precision,
+                    recall,
+                    f1,
+                    accuracy,
+                    pred.sum(),
+                )
 
             elif len(test_buffer) > cfg.train.test_batch_size:
                 s_b, a_b, s_1b = test_buffer.sample(cfg.train.test_batch_size)
@@ -160,16 +173,33 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
                     s_1b.float().to(cfg.device),
                 )
                 mse = model.evaluatePredictions(s_b, a_b, s_1b)
-                print("Next Step Prediction MSE: ", mse)
+                metrics["prediction_mse"] = mse
+                logger.info("Next-step prediction MSE: %s", mse)
                 writer.add_scalar("Predictions/MSE", mse, step)
 
     for episode, reward in enumerate(episode_rewards):
         writer.add_scalar("policy_stat/episode_reward", reward, episode)
 
+    if metrics["prediction_mse"] is None and test_buffer:
+        s_b, a_b, s_1b = test_buffer.sample(min(len(test_buffer), cfg.train.test_batch_size))
+        s_b, a_b, s_1b = (
+            s_b.float().to(cfg.device),
+            a_b.float().reshape(-1, action_dim).to(cfg.device),
+            s_1b.float().to(cfg.device),
+        )
+        metrics["prediction_mse"] = model.evaluatePredictions(s_b, a_b, s_1b)
+
     writer.close()
 
-    model.save_model(filepath=model_load_name)
+    model.save_model(filepath=checkpoint_path)
+    write_metrics(run_dir, metrics)
+    logger.info("Training run saved to %s", run_dir)
+    return run_dir
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    from cli import main as cli_main
+
+    raise SystemExit(cli_main(["train", *sys.argv[1:]]))

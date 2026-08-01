@@ -4,6 +4,7 @@ model_kind: cdl
 param_ranges: ood
 num_steps: 10
 device: auto
+deterministic: false
 model:
   lr: 0.001
   cmi_threshold: 0.2
