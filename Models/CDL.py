@@ -1,11 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-import numpy as np
+import torch.optim as optim
 from torch.distributions import Normal
-import networkx as nx
-import matplotlib.pyplot as plt
+
+from Models.base import CausalModel
 
 
 class MLP(nn.Module):
@@ -66,7 +65,7 @@ class StatePredictor(nn.Module):
         return mu, std
 
 
-class CDL:
+class CDL(CausalModel):
     def __init__(
         self,
         state_dim,
@@ -261,181 +260,3 @@ class CDL:
         self.mask_CMI = state["mask_CMI"]
         self._eval_cmi_acc = state["eval_cmi_acc"]
         self._eval_step_count = state["eval_step_count"]
-
-    def visualize_causal_graph(self, threshold=None):
-        graph = self.get_binary_graph(threshold=threshold).cpu().numpy()
-        fd = graph.shape[0]
-        G = nx.DiGraph()
-        G.add_nodes_from(range(fd))
-
-        for i in range(fd):
-            for j in range(fd):
-                if graph[i, j]:
-                    G.add_edge(j, i)
-
-        ncp_nodes = list(range(self.kpi_start))
-        kpi_nodes = list(range(self.kpi_start, fd))
-
-        n_ncp = len(ncp_nodes)
-        n_kpi = len(kpi_nodes)
-
-        pos = {}
-        for idx, node in enumerate(ncp_nodes):
-            pos[node] = (idx * 2.0 / max(n_ncp - 1, 1), 1.0)
-        for idx, node in enumerate(kpi_nodes):
-            pos[node] = (idx * 2.0 / max(n_kpi - 1, 1), 0.0)
-
-        labels = {i: self.node_names[i] for i in range(fd)}
-
-        ncp_to_kpi_edges = [(u, v) for u, v in G.edges() if u in ncp_nodes and v in kpi_nodes]
-        kpi_to_kpi_edges = [(u, v) for u, v in G.edges() if u in kpi_nodes and v in kpi_nodes]
-        ncp_to_ncp_edges = [(u, v) for u, v in G.edges() if u in ncp_nodes and v in ncp_nodes]
-
-        plt.figure(figsize=(12, 6))
-
-        nx.draw_networkx_nodes(
-            G,
-            pos,
-            nodelist=ncp_nodes,
-            node_color="#AED6F1",
-            node_size=1200,
-            edgecolors="#2E86C1",
-            linewidths=2,
-        )
-        nx.draw_networkx_nodes(
-            G,
-            pos,
-            nodelist=kpi_nodes,
-            node_color="#FADBD8",
-            node_size=1200,
-            edgecolors="#E74C3C",
-            linewidths=2,
-        )
-
-        nx.draw_networkx_labels(G, pos, labels=labels, font_size=10)
-
-        nx.draw_networkx_edges(
-            G, pos, edgelist=ncp_to_kpi_edges, edge_color="gray", arrows=True, arrowsize=15
-        )
-        nx.draw_networkx_edges(
-            G,
-            pos,
-            edgelist=kpi_to_kpi_edges,
-            edge_color="#A569BD",
-            arrows=True,
-            arrowsize=15,
-            style="dashed",
-            connectionstyle="arc3,rad=0.3",
-        )
-        nx.draw_networkx_edges(
-            G,
-            pos,
-            edgelist=ncp_to_ncp_edges,
-            edge_color="#2E86C1",
-            arrows=True,
-            arrowsize=15,
-            connectionstyle="arc3,rad=0.3",
-        )
-
-        legend_elements = [
-            plt.Line2D(
-                [0],
-                [0],
-                marker="o",
-                color="w",
-                markerfacecolor="#AED6F1",
-                markeredgecolor="#2E86C1",
-                markersize=12,
-                label="NCP (Control)",
-            ),
-            plt.Line2D(
-                [0],
-                [0],
-                marker="o",
-                color="w",
-                markerfacecolor="#FADBD8",
-                markeredgecolor="#E74C3C",
-                markersize=12,
-                label="KPI (Metric)",
-            ),
-            plt.Line2D([0], [0], color="gray", label="NCP→KPI"),
-            plt.Line2D([0], [0], color="#A569BD", linestyle="dashed", label="KPI→KPI Implicit"),
-            plt.Line2D([0], [0], color="#2E86C1", label="NCP→NCP"),
-        ]
-        plt.legend(handles=legend_elements, loc="lower center", ncol=5, frameon=True)
-
-        plt.title("Causal Graph")
-        plt.axis("off")
-        plt.tight_layout()
-        plt.show()
-
-    def visualize_cmi_heatmap(self):
-        import matplotlib.pyplot as plt
-        import matplotlib.widgets as widgets
-        import numpy as np
-
-        cmi = self.get_causal_graph().cpu().numpy()
-        fd = cmi.shape[0]
-
-        for i in range(fd):
-            cmi[i, i] = 0.0
-
-        fig, axes = plt.subplots(1, 2, figsize=(18, 6))
-        plt.subplots_adjust(bottom=0.3)
-
-        im = axes[0].imshow(cmi, cmap="hot", aspect="auto")
-        axes[0].set_xticks(range(cmi.shape[1]))
-        axes[0].set_yticks(range(fd))
-        axes[0].set_xticklabels(self.node_names + ["action"], rotation=45, ha="right", fontsize=9)
-        axes[0].set_yticklabels(self.node_names, fontsize=9)
-        axes[0].set_title("CMI Heatmap (raw values)")
-        axes[0].set_xlabel("Source")
-        axes[0].set_ylabel("Target")
-        plt.colorbar(im, ax=axes[0])
-
-        binary = (cmi >= self.cmi_threshold).astype(float)
-        im2 = axes[1].imshow(binary, cmap="Blues", aspect="auto", vmin=0, vmax=1)
-        axes[1].set_xticks(range(cmi.shape[1]))
-        axes[1].set_yticks(range(fd))
-        axes[1].set_xticklabels(self.node_names + ["action"], rotation=45, ha="right", fontsize=9)
-        axes[1].set_yticklabels(self.node_names, fontsize=9)
-        title2 = axes[1].set_title(f"Binary Graph (threshold={self.cmi_threshold})")
-        axes[1].set_xlabel("Source")
-        axes[1].set_ylabel("Target")
-        plt.colorbar(im2, ax=axes[1])
-
-        ax_slider = plt.axes([0.25, 0.12, 0.5, 0.03])
-        slider = widgets.Slider(
-            ax_slider,
-            "Threshold",
-            valmin=0.0,
-            valmax=float(cmi.max()),
-            valinit=self.cmi_threshold,
-            valstep=0.01,
-        )
-
-        ax_button = plt.axes([0.45, 0.04, 0.1, 0.04])
-        button = widgets.Button(ax_button, "Confirm")
-
-        def update(val):
-            t = slider.val
-            binary = (cmi >= t).astype(float)
-            for i in range(fd):
-                binary[i, i] = 0.0
-            im2.set_data(binary)
-            title2.set_text(f"Binary Graph (threshold={t:.2f})")
-            fig.canvas.draw_idle()
-
-        cmi_thres = self.cmi_threshold
-
-        def confirm(event):
-            nonlocal cmi_thres
-            cmi_thres = slider.val
-            plt.close(fig)
-
-        slider.on_changed(update)
-        button.on_clicked(confirm)
-
-        plt.show()
-        print(f"Selected CMI Threshold: {cmi_thres:.2f}")
-        return cmi_thres

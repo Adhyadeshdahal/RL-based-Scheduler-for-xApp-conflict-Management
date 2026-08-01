@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-import numpy as np
+import torch.optim as optim
 from torch.distributions import Normal
+
+from Models.base import WorldModel
 
 
 class MLP(nn.Module):
@@ -22,7 +23,7 @@ class MLP(nn.Module):
         return self.net(x)
 
 
-class MLPInference:
+class MLPInference(WorldModel):
     def __init__(
         self,
         state_dim,
@@ -42,8 +43,6 @@ class MLPInference:
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.kpi_start = kpi_start
-        self.cmi_threshold = cmi_threshold
-        self.eval_tau = eval_tau
         self.eval_steps = eval_steps
         self.grad_clip = grad_clip
         self.hidden_layers = hidden_layers
@@ -59,10 +58,6 @@ class MLPInference:
         ).to(self.device)
 
         self.opt = optim.Adam(self.model.parameters(), lr=lr)
-
-        self.mask_CMI = torch.zeros(state_dim, state_dim + 1, device=self.device)
-        self._eval_cmi_acc = torch.zeros(state_dim, state_dim + 1, device=self.device)
-        self._eval_step_count = 0
 
     def _nll(self, mu, std, target):
         return -Normal(mu, std).log_prob(target)
@@ -98,15 +93,6 @@ class MLPInference:
 
         return loss.item()
 
-    def update_mask(self, s_batch, a_batch):
-        pass
-
-    def get_causal_graph(self):
-        pass
-
-    def get_binary_graph(self):
-        pass
-
     def predictNextState(self, s, a):
         """
         s: (bs, state_dim)
@@ -139,15 +125,10 @@ class MLPInference:
             {
                 "model_state_dict": self.model.state_dict(),
                 "optimizer_state_dict": self.opt.state_dict(),
-                "mask_CMI": self.mask_CMI,
-                "eval_cmi_acc": self._eval_cmi_acc,
-                "eval_step_count": self._eval_step_count,
                 "state_dim": self.state_dim,
                 "action_dim": self.action_dim,
                 "kpi_start": self.kpi_start,
                 "hidden_layers": self.hidden_layers,
-                "cmi_threshold": self.cmi_threshold,
-                "eval_tau": self.eval_tau,
                 "eval_steps": self.eval_steps,
                 "grad_clip": self.grad_clip,
             },
@@ -159,7 +140,4 @@ class MLPInference:
         state = torch.load(filepath, map_location=self.device)
         self.model.load_state_dict(state["model_state_dict"])
         self.opt.load_state_dict(state["optimizer_state_dict"])
-        self.mask_CMI = state["mask_CMI"]
-        self._eval_cmi_acc = state["eval_cmi_acc"]
-        self._eval_step_count = state["eval_step_count"]
         print(f"Model loaded from {filepath}")

@@ -1,6 +1,7 @@
+from config import DEFAULT_CONFIG, ExperimentConfig
 from Environment import get_env
 from Models import get_model
-from config import DEFAULT_CONFIG, ExperimentConfig
+from viz import select_cmi_threshold, visualize_causal_graph
 
 
 def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
@@ -12,8 +13,8 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
     model = get_model(cfg, env)
 
     model.load_model(f"CMI-{cfg.environment}_model.pt")
-    thres = model.visualize_cmi_heatmap()
-    model.visualize_causal_graph(threshold=thres)
+    threshold = select_cmi_threshold(model)
+    visualize_causal_graph(model, threshold=threshold)
 
 
 if __name__ == "__main__":

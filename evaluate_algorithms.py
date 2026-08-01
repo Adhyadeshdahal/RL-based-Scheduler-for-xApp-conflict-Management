@@ -13,20 +13,18 @@ Pipeline
      - Conflict count per step
 """
 
-import torch
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.lines import Line2D
-from matplotlib import rcParams
-from torch.utils.tensorboard import SummaryWriter
+from dataclasses import replace
 from datetime import datetime
 
+import numpy as np
+import torch
+from matplotlib import rcParams
+from torch.utils.tensorboard import SummaryWriter
+
 from Algorithms import get_algorithms
-from Models.CDL import CDL
-from Environment import get_env
-from Models import get_model, nodeNames
 from config import DEFAULT_CONFIG, ExperimentConfig
+from Environment import get_env
+from Models import get_model
 
 XAPP_COLORS = [
     "#E91E8C",
@@ -263,24 +261,12 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
     torch.manual_seed(cfg.seed)
 
     env = get_env(cfg)
-    state_dim = env.get_state_dim()
     act_dim = env.get_action_dim()
     model = get_model(cfg, env)
 
-    cdl = CDL(
-        state_dim=state_dim,
-        action_dim=act_dim,
-        device=cfg.device,
-        cmi_threshold=cfg.model.cmi_threshold,
-        eval_tau=cfg.model.eval_tau,
-        eval_steps=cfg.train.eval_steps,
-        grad_clip=cfg.model.grad_clip,
-        generative_fc_dims=cfg.model.generative_fc_dims,
-        feature_fc_dims=cfg.model.feature_fc_dims,
-        lr=cfg.model.lr,
-        kpi_start=env.num_params,
-        node_names=nodeNames(env),
-    )
+    # The graph always comes from the trained causal model, including in MLP mode.
+    cdl_cfg = cfg if cfg.model_kind == "cdl" else replace(cfg, model_kind="cdl")
+    cdl = get_model(cdl_cfg, env)
     try:
         cdl.load_model(f"CMI-{cfg.environment}_model.pt")
     except FileNotFoundError:
