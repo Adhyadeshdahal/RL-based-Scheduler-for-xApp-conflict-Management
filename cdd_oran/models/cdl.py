@@ -1,3 +1,5 @@
+from typing import cast
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -35,6 +37,30 @@ class StatePredictor(nn.Module):
         self.action_feature_extractor = MLP(action_dim, feature_dim, [])
         self.predictor = MLP(feature_dim, 2, pred_hidden)
 
+    def features(self, s, a):
+        """
+        s: (bs, state_dim), a: (bs, action_dim) -> (bs, state_dim+1, feature_dim)
+        """
+        feats = []
+        for i in range(self.state_dim):
+            feats.append(self.state_feature_extractors[i](s[:, i : i + 1]))
+
+        feats.append(self.action_feature_extractor(a))
+        return torch.stack(feats, dim=1)
+
+    def head(self, feats):
+        """
+        feats: (..., state_dim+1, feature_dim) -> mu (..., 1), std (..., 1)
+        """
+        h, _ = feats.max(dim=-2)
+
+        out = self.predictor(h)
+        mu = out[..., 0:1]
+        log_std = out[..., 1:2]
+        std = torch.exp(torch.clamp(log_std, -5, 2)) + 1e-4
+
+        return mu, std
+
     def forward(self, s, a, mask=None):
         """
         s:    (bs, state_dim)
@@ -42,26 +68,12 @@ class StatePredictor(nn.Module):
         mask: (bs, state_dim+1) bool
         returns: mu (bs, 1), std (bs, 1)
         """
-        fd = self.state_dim
-
-        feats = []
-        for i in range(fd):
-            feats.append(self.state_feature_extractors[i](s[:, i : i + 1]))
-
-        feats.append(self.action_feature_extractor(a))
-        feats = torch.stack(feats, dim=1)  # (bs, fd+1, feature_dim)
+        feats = self.features(s, a)
 
         if mask is not None:
             feats = feats.masked_fill(mask.unsqueeze(-1), float("-inf"))
 
-        h, _ = feats.max(dim=1)  # (bs, feature_dim)
-
-        out = self.predictor(h)
-        mu = out[:, 0:1]
-        log_std = out[:, 1:2]
-        std = torch.exp(torch.clamp(log_std, -5, 2)) + 1e-4
-
-        return mu, std
+        return self.head(feats)
 
 
 class CDL(CausalModel):
@@ -156,25 +168,30 @@ class CDL(CausalModel):
     def update_mask(self, s_batch, a_batch):
         s_t = s_batch[:, 0]
         s_tp1 = s_batch[:, 1]
-        bs = s_t.shape[0]
         fd = self.state_dim
 
         step_cmi = torch.zeros(fd, fd + 1, device=self.device)
 
+        # All fd+1 single-input ablations share one feature extraction and run as a
+        # single batched head pass. Same arithmetic as one masked forward per input.
+        drop_one = torch.eye(fd + 1, dtype=torch.bool, device=self.device)
+        drop_one = drop_one.view(fd + 1, 1, fd + 1, 1)  # (fd+1, 1, fd+1, 1)
+
         with torch.no_grad():
             for j in range(fd):
                 target = s_tp1[:, j : j + 1]
-                self.models[j].eval()
-                mu, std = self.models[j](s_t, a_batch)
-                full_nll = self._nll(mu, std, target)
+                model = cast(StatePredictor, self.models[j])
+                model.eval()
 
-                for i in range(fd + 1):
-                    mask = torch.zeros(bs, fd + 1, dtype=torch.bool, device=self.device)
-                    self.models[j].eval()
-                    mask[:, i] = True
-                    mu_m, std_m = self.models[j](s_t, a_batch, mask=mask)
-                    masked_nll = self._nll(mu_m, std_m, target)
-                    step_cmi[j, i] = (masked_nll - full_nll).mean()
+                feats = model.features(s_t, a_batch)  # (bs, fd+1, feature_dim)
+                mu, std = model.head(feats)
+                full_nll = self._nll(mu, std, target)  # (bs, 1)
+
+                ablated = feats.unsqueeze(0).masked_fill(drop_one, float("-inf"))
+                mu_m, std_m = model.head(ablated)  # (fd+1, bs, 1)
+                masked_nll = self._nll(mu_m, std_m, target)
+
+                step_cmi[j] = (masked_nll - full_nll).mean(dim=(1, 2))
 
         self._eval_cmi_acc += step_cmi
         self._eval_step_count += 1
