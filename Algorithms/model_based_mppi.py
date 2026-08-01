@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from Parameters import *
 
 
 class ModelBasedMPPI:
@@ -17,9 +16,9 @@ class ModelBasedMPPI:
         self,
         model,
         env,
-        n_samples=N_SAMPLES,
-        temperature=TEMPERATURE,
-        noise_sigma=NOISE_SIGMA,
+        n_samples,
+        temperature,
+        noise_sigma,
     ):
         self.model = model
         self.env = env

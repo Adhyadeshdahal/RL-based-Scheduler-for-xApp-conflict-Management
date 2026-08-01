@@ -1,0 +1,35 @@
+seed: 0
+environment: EnvironmentI
+model_kind: cdl
+param_ranges: ood
+num_steps: 10
+device: auto
+model:
+  lr: 0.001
+  cmi_threshold: 0.2
+  eval_tau: 0.99
+  grad_clip: 10.0
+  generative_fc_dims: [64, 64]
+  feature_fc_dims: [64, 64]
+  batch_size: 128
+train:
+  total_steps: 50000
+  init_steps: 4000
+  inference_gradient_steps: 1
+  eval_steps: 10
+  plot_freq: 500
+  test_batch_size: 10
+  model_based_start: 50000
+planner:
+  n_horizon: 1
+  cem:
+    n_candidate: 256
+    n_top: 128
+    n_iter: 20
+  mppi:
+    n_samples: 2000
+    temperature: 0.6
+    noise_sigma: 0.1
+  mcts:
+    n_simulations: 3
+    ucb_c: 1.5

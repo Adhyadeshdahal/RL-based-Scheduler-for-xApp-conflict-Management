@@ -72,15 +72,15 @@ class CDL:
         state_dim,
         action_dim,
         kpi_start,
-        feature_fc_dims=(64,),
-        generative_fc_dims=(64, 32),
-        lr=3e-4,
-        cmi_threshold=0.2,
-        eval_tau=0.99,
+        feature_fc_dims,
+        generative_fc_dims,
+        lr,
+        cmi_threshold,
+        eval_tau,
+        grad_clip,
+        device,
+        node_names,
         eval_steps=10,
-        grad_clip=10.0,
-        device=None,
-        node_names=None,
     ):
         self.state_dim = state_dim
         self.action_dim = action_dim

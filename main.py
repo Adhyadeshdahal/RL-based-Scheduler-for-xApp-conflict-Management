@@ -7,12 +7,9 @@ import random
 from Policies.RandomPolicy import RandomPolicy
 from torch.utils.tensorboard import SummaryWriter
 import os
-from Parameters import *
 from Models import get_model
-
-np.random.seed(SEED)
-torch.manual_seed(SEED)
-IS_TRAIN = True
+from config import DEFAULT_CONFIG, ExperimentConfig
+from datetime import datetime
 
 
 def state_to_tensor(state_dict):
@@ -59,17 +56,16 @@ class ReplayBufferDataset(Dataset):
         return torch.stack(s), torch.tensor(a), torch.stack(s_next)
 
 
-def main():
-    env = get_env()
+def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
+    np.random.seed(cfg.seed)
+    torch.manual_seed(cfg.seed)
+    env = get_env(cfg)
 
     ground_truth_causal_graph = env.true_adj_matrix
-    global USE_CMI, USE_MLP, RESULT_DIR
-    if isinstance(env, ORANEnvironment2):
-        RESULT_DIR += "QACM"
-    elif isinstance(env, ORANEnvironment):
-        RESULT_DIR += "EnvironmentII"
+    model_label = "CMI" if cfg.model_kind == "cdl" else "MLP"
+    result_dir = f"rslts/{model_label}/{cfg.environment}-{datetime.now():%Y%m%d_%H%M%S}/"
 
-    writer = SummaryWriter(os.path.join(RESULT_DIR, "tensorboard"))
+    writer = SummaryWriter(os.path.join(result_dir, "tensorboard"))
 
     state_dim = env.get_state_dim()
     action_dim = env.action_dim
@@ -77,16 +73,15 @@ def main():
     random_policy = RandomPolicy(action_dim=env.action_dim, action_space=env.action_space)
     mb_policy = None
 
-    model = get_model(env)
+    model = get_model(cfg, env)
 
-    # IS_TRAIN is shadowed at line 15 while IS_TEST still derives from Parameters, so
-    # this branch runs even on a fresh training run.
-    if not IS_TRAIN or IS_TEST:
-        if os.path.exists(MODEL_LOAD_NAME):
-            model.load_model(MODEL_LOAD_NAME)
-            print(f"[main] Resumed from checkpoint: {MODEL_LOAD_NAME}")
+    model_load_name = f"{model_label}-{cfg.environment}_model.pt"
+    if resume:
+        if os.path.exists(model_load_name):
+            model.load_model(model_load_name)
+            print(f"[main] Resumed from checkpoint: {model_load_name}")
         else:
-            print(f"[main] No checkpoint at {MODEL_LOAD_NAME}; training from scratch.")
+            print(f"[main] No checkpoint at {model_load_name}; training from scratch.")
 
     train_buffer = ReplayBufferDataset(state_dim, action_dim)
     test_buffer = ReplayBufferDataset(state_dim, action_dim)
@@ -94,9 +89,9 @@ def main():
     loss = 0.0
     episode_reward = 0
     episode_rewards = []
-    for step in range(TOTAL_STEPS):
+    for step in range(cfg.train.total_steps):
         if mb_policy is not None:
-            s_tensor = state_to_tensor(obs).to(DEVICE)
+            s_tensor = state_to_tensor(obs).to(cfg.device)
             action = mb_policy.act(s_tensor)
         else:
             action = random_policy.act()
@@ -118,48 +113,46 @@ def main():
 
             episode_reward = 0
 
-        if (step < INIT_STEPS) and IS_TRAIN:
+        if step < cfg.train.init_steps:
             continue
 
-        if IS_TRAIN:
-            for _ in range(INFERENCE_GRADIENT_STEPS):
-                s, a, s_next = train_buffer.sample(BATCH_SIZE)
-                s = s.float().to(DEVICE)
-                s_next = s_next.float().to(DEVICE)
-                a = a.float().reshape(-1, action_dim).to(DEVICE)
-                s_pair = torch.stack([s, s_next], dim=1).to(DEVICE)
-                loss = model.train_step(s_pair, a)
+        for _ in range(cfg.train.inference_gradient_steps):
+            s, a, s_next = train_buffer.sample(cfg.model.batch_size)
+            s = s.float().to(cfg.device)
+            s_next = s_next.float().to(cfg.device)
+            a = a.float().reshape(-1, action_dim).to(cfg.device)
+            s_pair = torch.stack([s, s_next], dim=1).to(cfg.device)
+            loss = model.train_step(s_pair, a)
 
-            if USE_CMI:
-                # ---- UPDATE CAUSAL GRAPH ----
-                if step % (EVAL_STEPS * INFERENCE_GRADIENT_STEPS) == 0:
-                    s, a, s_next = train_buffer.sample(BATCH_SIZE)
-                    s = s.float().to(DEVICE)
-                    s_next = s_next.float().to(DEVICE)
-                    a = a.float().reshape(-1, action_dim).to(DEVICE)
-                    s_pair = torch.stack([s, s_next], dim=1).to(DEVICE)
-                    model.update_mask(s_pair, a)
+        if cfg.model_kind == "cdl":
+            if step % (cfg.train.eval_steps * cfg.train.inference_gradient_steps) == 0:
+                s, a, s_next = train_buffer.sample(cfg.model.batch_size)
+                s = s.float().to(cfg.device)
+                s_next = s_next.float().to(cfg.device)
+                a = a.float().reshape(-1, action_dim).to(cfg.device)
+                s_pair = torch.stack([s, s_next], dim=1).to(cfg.device)
+                model.update_mask(s_pair, a)
 
-        if step == MODEL_BASED_START:
+        if step == cfg.train.model_based_start:
             print(f"\nStep {step}: CDL trained — switching to model-based policy")
             mb_policy = ModelBasedPolicy(
                 cdl=model,
                 env=env,
                 reward_fn=oran_reward,
-                n_horizon=N_HORIZON,
-                n_candidate=N_CANDIDATE,
-                n_top=N_TOP,
-                n_iter=N_ITER,
+                n_horizon=cfg.planner.n_horizon,
+                n_candidate=cfg.planner.cem.n_candidate,
+                n_top=cfg.planner.cem.n_top,
+                n_iter=cfg.planner.cem.n_iter,
             )
 
-        if step % PLOT_FREQ == 0:
-            if USE_CMI:
-                if len(test_buffer) >= TEST_BATCH_SIZE:
-                    s_b, a_b, s_1b = test_buffer.sample(TEST_BATCH_SIZE)
+        if step % cfg.train.plot_freq == 0:
+            if cfg.model_kind == "cdl":
+                if len(test_buffer) >= cfg.train.test_batch_size:
+                    s_b, a_b, s_1b = test_buffer.sample(cfg.train.test_batch_size)
                     s_b, a_b, s_1b = (
-                        s_b.float().to(DEVICE),
-                        a_b.float().reshape(-1, action_dim).to(DEVICE),
-                        s_1b.float().to(DEVICE),
+                        s_b.float().to(cfg.device),
+                        a_b.float().reshape(-1, action_dim).to(cfg.device),
+                        s_1b.float().to(cfg.device),
                     )
                     mse = model.evaluatePredictions(s_b, a_b, s_1b)
                     print("Next Step Prediction MSE: ", mse)
@@ -192,12 +185,12 @@ def main():
                 print("Accuracy:", accuracy)
                 print("N:", pred.sum())
 
-            elif USE_MLP and len(test_buffer) > TEST_BATCH_SIZE:
-                s_b, a_b, s_1b = test_buffer.sample(TEST_BATCH_SIZE)
+            elif len(test_buffer) > cfg.train.test_batch_size:
+                s_b, a_b, s_1b = test_buffer.sample(cfg.train.test_batch_size)
                 s_b, a_b, s_1b = (
-                    s_b.float().to(DEVICE),
-                    a_b.float().reshape(-1, action_dim).to(DEVICE),
-                    s_1b.float().to(DEVICE),
+                    s_b.float().to(cfg.device),
+                    a_b.float().reshape(-1, action_dim).to(cfg.device),
+                    s_1b.float().to(cfg.device),
                 )
                 mse = model.evaluatePredictions(s_b, a_b, s_1b)
                 print("Next Step Prediction MSE: ", mse)
@@ -208,8 +201,7 @@ def main():
 
     writer.close()
 
-    if IS_TRAIN:
-        model.save_model(filepath=MODEL_SAVE_NAME)
+    model.save_model(filepath=model_load_name)
 
 
 if __name__ == "__main__":

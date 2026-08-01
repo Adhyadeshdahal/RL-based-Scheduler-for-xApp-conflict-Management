@@ -24,9 +24,9 @@ from datetime import datetime
 
 from Algorithms import get_algorithms
 from Models.CDL import CDL
-from Parameters import *
 from Environment import get_env
-from Models import get_model
+from Models import get_model, nodeNames
+from config import DEFAULT_CONFIG, ExperimentConfig
 
 XAPP_COLORS = [
     "#E91E8C",
@@ -258,58 +258,62 @@ def draw_panel(
     ax.set_title(title, pad=7)
 
 
-def main():
-    np.random.seed(SEED)
-    torch.manual_seed(SEED)
+def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
+    np.random.seed(cfg.seed)
+    torch.manual_seed(cfg.seed)
 
-    env = get_env()
+    env = get_env(cfg)
     state_dim = env.get_state_dim()
     act_dim = env.get_action_dim()
-    model = get_model(env)
+    model = get_model(cfg, env)
 
     cdl = CDL(
         state_dim=state_dim,
         action_dim=act_dim,
-        device=DEVICE,
-        cmi_threshold=CMI_THRESHOLD,
-        eval_tau=EVAL_TAU,
-        grad_clip=GRAD_CLIP,
-        generative_fc_dims=GENERATIVE_FC_DIMS,
-        feature_fc_dims=FEATURE_FC_DIMS,
-        lr=1e-3,
+        device=cfg.device,
+        cmi_threshold=cfg.model.cmi_threshold,
+        eval_tau=cfg.model.eval_tau,
+        eval_steps=cfg.train.eval_steps,
+        grad_clip=cfg.model.grad_clip,
+        generative_fc_dims=cfg.model.generative_fc_dims,
+        feature_fc_dims=cfg.model.feature_fc_dims,
+        lr=cfg.model.lr,
         kpi_start=env.num_params,
+        node_names=nodeNames(env),
     )
     try:
-        cdl.load_model(CDL_LOAD_NAME)
+        cdl.load_model(f"CMI-{cfg.environment}_model.pt")
     except FileNotFoundError:
-        print("[ERROR] CDL model not found:", CDL_LOAD_NAME)
+        print("[ERROR] CDL model not found:", f"CMI-{cfg.environment}_model.pt")
         return -1
 
     try:
-        model.load_model(MODEL_LOAD_NAME)
+        model.load_model(
+            f"{'CMI' if cfg.model_kind == 'cdl' else 'MLP'}-{cfg.environment}_model.pt"
+        )
     except FileNotFoundError:
-        print("[ERROR] Inference model not found:", MODEL_LOAD_NAME)
+        print("[ERROR] Inference model not found")
         return -1
 
-    algorithms = get_algorithms(model, env)
+    algorithms = get_algorithms(cfg, model, env)
     algo_names = [a.name for a in algorithms]
     utility_fns = env.get_utility_fns()
 
     KPI_THRESHOLDS, MEAN_STD_KPIS = env.get_thresholds_stds()
 
-    tag_suffix = "CMI" if USE_CMI else "MLP"
+    tag_suffix = "CMI" if cfg.model_kind == "cdl" else "MLP"
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = f"runs/{ENVIRONMENT}/evaluate_{tag_suffix}_{timestamp}"
+    run_dir = f"runs/{cfg.environment}/evaluate_{tag_suffix}_{timestamp}"
     writer = SummaryWriter(log_dir=run_dir)
 
     print(f"TensorBoard logging to:  {run_dir}")
-    print(f"Running evaluation for {NUM_STEPS} environment steps ...\n")
+    print(f"Running evaluation for {cfg.num_steps} environment steps ...\n")
 
     env.reset()
 
-    for global_step in range(NUM_STEPS):
+    for global_step in range(cfg.num_steps):
         state_dict = env._get_state()
-        state_t = state_to_tensor(state_dict).to(DEVICE)
+        state_t = state_to_tensor(state_dict).to(cfg.device)
         raw_params = denormalize_params(state_t[: env.num_params].cpu().numpy(), env)
 
         causal_graph = cdl.get_binary_graph()[:, :-1].cpu().detach().numpy()

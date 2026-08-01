@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import math
-from Parameters import *
 
 
 class MCTSNode:
@@ -28,8 +27,8 @@ class ModelBasedMCTS:
         self,
         model,
         env,
-        n_simulations=N_SIMULATIONS,
-        ucb_c=USB_C,
+        n_simulations,
+        ucb_c,
     ):
         self.model = model
         self.env = env

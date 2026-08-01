@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from Parameters import *
 
 
 class ModelBasedCEM:
@@ -14,9 +13,9 @@ class ModelBasedCEM:
         self,
         model,
         env,
-        n_candidate: int = N_CANDIDATE,
-        n_top: int = N_TOP,
-        n_iter: int = N_ITER,
+        n_candidate: int,
+        n_top: int,
+        n_iter: int,
     ):
         self.model = model
         self.env = env
