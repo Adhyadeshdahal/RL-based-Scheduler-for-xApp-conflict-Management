@@ -1,0 +1,705 @@
+{
+  "env": "EnvironmentI",
+  "model_kind": "MLP",
+  "state_dim": 11,
+  "action_dim": 3,
+  "num_params": 7,
+  "true_adj_edges": 10,
+  "num_conflict_edges": 8,
+  "state": [
+    0.9646475911,
+    0.7236853242,
+    0.642475307,
+    0.717453599,
+    0.4675990045,
+    0.3255846798,
+    0.4396446049,
+    -1.5278024673,
+    -0.1549416035,
+    -1.6454441547,
+    -1.7974022627
+  ],
+  "raw_params": [
+    289.3942871094,
+    217.1055908203,
+    1.9274258614,
+    2.1523609161,
+    1.4027969837,
+    0.9767540693,
+    1.3189338446
+  ],
+  "cost_probe": [
+    [
+      0,
+      -3.0,
+      2.6110347406,
+      0
+    ],
+    [
+      0,
+      -1.0,
+      0.6110347406,
+      0
+    ],
+    [
+      0,
+      -0.25,
+      0.0,
+      1
+    ],
+    [
+      0,
+      0.0,
+      0.0,
+      1
+    ],
+    [
+      0,
+      0.25,
+      0.0,
+      1
+    ],
+    [
+      0,
+      1.0,
+      0.0,
+      1
+    ],
+    [
+      0,
+      3.0,
+      0.0,
+      1
+    ],
+    [
+      1,
+      -3.0,
+      8.2856125835,
+      0
+    ],
+    [
+      1,
+      -1.0,
+      6.2856125835,
+      0
+    ],
+    [
+      1,
+      -0.25,
+      5.5356125835,
+      0
+    ],
+    [
+      1,
+      0.0,
+      5.2856125835,
+      0
+    ],
+    [
+      1,
+      0.25,
+      5.0356125835,
+      0
+    ],
+    [
+      1,
+      1.0,
+      4.2856125835,
+      0
+    ],
+    [
+      1,
+      3.0,
+      2.2856125835,
+      0
+    ],
+    [
+      2,
+      -3.0,
+      2.7667983493,
+      0
+    ],
+    [
+      2,
+      -1.0,
+      0.7667983493,
+      0
+    ],
+    [
+      2,
+      -0.25,
+      0.0167983493,
+      0
+    ],
+    [
+      2,
+      0.0,
+      0.0,
+      1
+    ],
+    [
+      2,
+      0.25,
+      0.0,
+      1
+    ],
+    [
+      2,
+      1.0,
+      0.0,
+      1
+    ],
+    [
+      2,
+      3.0,
+      0.0,
+      1
+    ],
+    [
+      3,
+      -3.0,
+      2.6204535667,
+      0
+    ],
+    [
+      3,
+      -1.0,
+      0.6204535667,
+      0
+    ],
+    [
+      3,
+      -0.25,
+      0.0,
+      1
+    ],
+    [
+      3,
+      0.0,
+      0.0,
+      1
+    ],
+    [
+      3,
+      0.25,
+      0.0,
+      1
+    ],
+    [
+      3,
+      1.0,
+      0.0,
+      1
+    ],
+    [
+      3,
+      3.0,
+      0.0,
+      1
+    ]
+  ],
+  "model_probe": [
+    [
+      -0.09458274,
+      -0.04193913,
+      -0.07455426,
+      0.08691415
+    ],
+    [
+      0.76049781,
+      0.67618608,
+      0.56406391,
+      0.54378366
+    ]
+  ],
+  "results": [
+    {
+      "edge": 0,
+      "param_id": 0,
+      "primary_xapp_id": 0,
+      "planner": "QACM",
+      "action": [
+        0,
+        0,
+        3
+      ],
+      "raw_val": 3.0,
+      "utilities": [
+        1.27419192,
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 0,
+      "param_id": 0,
+      "primary_xapp_id": 0,
+      "planner": "ModelBasedCEM",
+      "action": [
+        0,
+        4,
+        9
+      ],
+      "raw_val": 142.33333333,
+      "utilities": [
+        0.80990736,
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 0,
+      "param_id": 0,
+      "primary_xapp_id": 0,
+      "planner": "ModelBasedMPPI",
+      "action": [
+        0,
+        5,
+        0
+      ],
+      "raw_val": 166.66666667,
+      "utilities": [
+        0.68981342,
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 0,
+      "param_id": 0,
+      "primary_xapp_id": 0,
+      "planner": "ModelBasedMCTS",
+      "action": [
+        0,
+        0,
+        0
+      ],
+      "raw_val": 0.0,
+      "utilities": [
+        1.27878456,
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 1,
+      "param_id": 1,
+      "primary_xapp_id": 0,
+      "planner": "QACM",
+      "action": [
+        1,
+        0,
+        0
+      ],
+      "raw_val": 0.0,
+      "utilities": [
+        -1.52575539
+      ]
+    },
+    {
+      "edge": 1,
+      "param_id": 1,
+      "primary_xapp_id": 0,
+      "planner": "ModelBasedCEM",
+      "action": [
+        1,
+        4,
+        11
+      ],
+      "raw_val": 144.33333333,
+      "utilities": [
+        -0.81244862
+      ]
+    },
+    {
+      "edge": 1,
+      "param_id": 1,
+      "primary_xapp_id": 0,
+      "planner": "ModelBasedMPPI",
+      "action": [
+        1,
+        4,
+        13
+      ],
+      "raw_val": 146.33333333,
+      "utilities": [
+        -0.78517098
+      ]
+    },
+    {
+      "edge": 1,
+      "param_id": 1,
+      "primary_xapp_id": 0,
+      "planner": "ModelBasedMCTS",
+      "action": [
+        1,
+        0,
+        0
+      ],
+      "raw_val": 0.0,
+      "utilities": [
+        -1.52575539
+      ]
+    },
+    {
+      "edge": 2,
+      "param_id": 0,
+      "primary_xapp_id": 1,
+      "planner": "QACM",
+      "action": [
+        0,
+        0,
+        3
+      ],
+      "raw_val": 3.0,
+      "utilities": [
+        1.27419192,
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 2,
+      "param_id": 0,
+      "primary_xapp_id": 1,
+      "planner": "ModelBasedCEM",
+      "action": [
+        0,
+        4,
+        9
+      ],
+      "raw_val": 142.33333333,
+      "utilities": [
+        0.80990736,
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 2,
+      "param_id": 0,
+      "primary_xapp_id": 1,
+      "planner": "ModelBasedMPPI",
+      "action": [
+        0,
+        5,
+        0
+      ],
+      "raw_val": 166.66666667,
+      "utilities": [
+        0.68981342,
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 2,
+      "param_id": 0,
+      "primary_xapp_id": 1,
+      "planner": "ModelBasedMCTS",
+      "action": [
+        0,
+        0,
+        0
+      ],
+      "raw_val": 0.0,
+      "utilities": [
+        1.27878456,
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 3,
+      "param_id": 2,
+      "primary_xapp_id": 1,
+      "planner": "QACM",
+      "action": [
+        2,
+        3,
+        0
+      ],
+      "raw_val": 1.0,
+      "utilities": [
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 3,
+      "param_id": 2,
+      "primary_xapp_id": 1,
+      "planner": "ModelBasedCEM",
+      "action": [
+        2,
+        5,
+        0
+      ],
+      "raw_val": 1.66666667,
+      "utilities": [
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 3,
+      "param_id": 2,
+      "primary_xapp_id": 1,
+      "planner": "ModelBasedMPPI",
+      "action": [
+        2,
+        4,
+        0
+      ],
+      "raw_val": 1.33333333,
+      "utilities": [
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 3,
+      "param_id": 2,
+      "primary_xapp_id": 1,
+      "planner": "ModelBasedMCTS",
+      "action": [
+        2,
+        0,
+        0
+      ],
+      "raw_val": 0.0,
+      "utilities": [
+        -0.15973104
+      ]
+    },
+    {
+      "edge": 4,
+      "param_id": 3,
+      "primary_xapp_id": 2,
+      "planner": "QACM",
+      "action": [
+        3,
+        8,
+        0
+      ],
+      "raw_val": 2.66666667,
+      "utilities": [
+        -0.70040039
+      ]
+    },
+    {
+      "edge": 4,
+      "param_id": 3,
+      "primary_xapp_id": 2,
+      "planner": "ModelBasedCEM",
+      "action": [
+        3,
+        5,
+        0
+      ],
+      "raw_val": 1.66666667,
+      "utilities": [
+        0.10595853
+      ]
+    },
+    {
+      "edge": 4,
+      "param_id": 3,
+      "primary_xapp_id": 2,
+      "planner": "ModelBasedMPPI",
+      "action": [
+        3,
+        5,
+        0
+      ],
+      "raw_val": 1.66666667,
+      "utilities": [
+        0.10595853
+      ]
+    },
+    {
+      "edge": 4,
+      "param_id": 3,
+      "primary_xapp_id": 2,
+      "planner": "ModelBasedMCTS",
+      "action": [
+        3,
+        0,
+        0
+      ],
+      "raw_val": 0.0,
+      "utilities": [
+        1.14763245
+      ]
+    },
+    {
+      "edge": 5,
+      "param_id": 4,
+      "primary_xapp_id": 2,
+      "planner": "QACM",
+      "action": [
+        4,
+        8,
+        0
+      ],
+      "raw_val": 2.66666667,
+      "utilities": [
+        0.64873587
+      ]
+    },
+    {
+      "edge": 5,
+      "param_id": 4,
+      "primary_xapp_id": 2,
+      "planner": "ModelBasedCEM",
+      "action": [
+        4,
+        5,
+        0
+      ],
+      "raw_val": 1.66666667,
+      "utilities": [
+        0.01825791
+      ]
+    },
+    {
+      "edge": 5,
+      "param_id": 4,
+      "primary_xapp_id": 2,
+      "planner": "ModelBasedMPPI",
+      "action": [
+        4,
+        5,
+        0
+      ],
+      "raw_val": 1.66666667,
+      "utilities": [
+        0.01825791
+      ]
+    },
+    {
+      "edge": 5,
+      "param_id": 4,
+      "primary_xapp_id": 2,
+      "planner": "ModelBasedMCTS",
+      "action": [
+        4,
+        0,
+        0
+      ],
+      "raw_val": 0.0,
+      "utilities": [
+        -1.64024971
+      ]
+    },
+    {
+      "edge": 6,
+      "param_id": 5,
+      "primary_xapp_id": 3,
+      "planner": "QACM",
+      "action": [
+        5,
+        1,
+        0
+      ],
+      "raw_val": 0.33333333,
+      "utilities": [
+        -1.73546847
+      ]
+    },
+    {
+      "edge": 6,
+      "param_id": 5,
+      "primary_xapp_id": 3,
+      "planner": "ModelBasedCEM",
+      "action": [
+        5,
+        4,
+        0
+      ],
+      "raw_val": 1.33333333,
+      "utilities": [
+        0.41979961
+      ]
+    },
+    {
+      "edge": 6,
+      "param_id": 5,
+      "primary_xapp_id": 3,
+      "planner": "ModelBasedMPPI",
+      "action": [
+        5,
+        4,
+        0
+      ],
+      "raw_val": 1.33333333,
+      "utilities": [
+        0.41979961
+      ]
+    },
+    {
+      "edge": 6,
+      "param_id": 5,
+      "primary_xapp_id": 3,
+      "planner": "ModelBasedMCTS",
+      "action": [
+        5,
+        0,
+        0
+      ],
+      "raw_val": 0.0,
+      "utilities": [
+        -1.79184494
+      ]
+    },
+    {
+      "edge": 7,
+      "param_id": 6,
+      "primary_xapp_id": 3,
+      "planner": "QACM",
+      "action": [
+        6,
+        1,
+        0
+      ],
+      "raw_val": 0.33333333,
+      "utilities": [
+        0.95169768
+      ]
+    },
+    {
+      "edge": 7,
+      "param_id": 6,
+      "primary_xapp_id": 3,
+      "planner": "ModelBasedCEM",
+      "action": [
+        6,
+        4,
+        0
+      ],
+      "raw_val": 1.33333333,
+      "utilities": [
+        -0.01912569
+      ]
+    },
+    {
+      "edge": 7,
+      "param_id": 6,
+      "primary_xapp_id": 3,
+      "planner": "ModelBasedMPPI",
+      "action": [
+        6,
+        4,
+        0
+      ],
+      "raw_val": 1.33333333,
+      "utilities": [
+        -0.01912569
+      ]
+    },
+    {
+      "edge": 7,
+      "param_id": 6,
+      "primary_xapp_id": 3,
+      "planner": "ModelBasedMCTS",
+      "action": [
+        6,
+        0,
+        0
+      ],
+      "raw_val": 0.0,
+      "utilities": [
+        1.03275207
+      ]
+    }
+  ]
+}

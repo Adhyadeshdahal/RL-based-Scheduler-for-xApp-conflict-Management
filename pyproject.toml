@@ -15,26 +15,26 @@ dependencies = [
 ]
 
 [tool.uv]
-# The legacy top-level packages (Environment/, Models/, Algorithms/, ...) are not yet
-# arranged as an installable distribution, so uv installs dependencies only and the
-# project is imported from the working directory. This flips to `true` in Phase 1,
-# once the `cdd_oran/` package layout lands (see REFACTOR_PLAN.md).
+# Not yet an installable distribution; imports resolve from the working directory.
 package = false
 
 [dependency-groups]
 dev = [
+    "pytest>=9.1.1",
     "ruff>=0.9",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-# Report-only for now. The codebase relies on `from Parameters import *` and on
-# re-exporting `__init__.py` modules, so autofixing "unused" imports (F401/F403)
-# would break imports. Enable enforcement in Phase 6.3, after Phase 1 removes the
-# star-imports. Run `uv run ruff check .` to see the current findings.
+# Report-only: `ruff check --fix` would strip star-imports and re-exports that the
+# current layout depends on. Enforce in Phase 6.3, after Phase 1 removes them.
 select = ["E", "F", "W", "I", "UP", "B"]
 ignore = [
     "E501",   # line length -- the formatter owns this
