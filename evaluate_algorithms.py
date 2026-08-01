@@ -312,7 +312,7 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG):
     env.reset()
 
     for global_step in range(cfg.num_steps):
-        state_dict = env._get_state()
+        state_dict = env.get_state()
         state_t = state_to_tensor(state_dict).to(cfg.device)
         raw_params = denormalize_params(state_t[: env.num_params].cpu().numpy(), env)
 

@@ -7,13 +7,14 @@ Uses the ground-truth adjacency instead of a learned graph, and an untrained mod
 A short-trained model learns an empty graph, which yields zero conflict edges and
 exercises nothing; the paper checkpoints do not exist yet (Phase 0.3).
 
-Planner hyperparameters are passed explicitly rather than taken from their
-`Parameters`-sourced defaults, so goldens survive Phase 1's config rewrite.
+Planner hyperparameters are passed explicitly rather than read from the config, so
+goldens survive config changes.
 """
 
 from __future__ import annotations
 
 import random
+from dataclasses import replace
 
 import numpy as np
 import torch
@@ -47,12 +48,12 @@ def seed_all(seed: int) -> None:
 
 
 def build_env(env_name: str):
-    from Environment.Environment_I import ORANEnvironment
-    from Environment.Environment_II import ORANEnvironment2
+    from Environment import get_env
+    from config import DEFAULT_CONFIG
 
     # Seed before construction: Param.__init__ draws from np.random.
     seed_all(BASE_SEED)
-    env = ORANEnvironment() if env_name == "EnvironmentI" else ORANEnvironment2()
+    env = get_env(replace(DEFAULT_CONFIG, environment=env_name))
     env.reset()
     return env
 
