@@ -1,0 +1,72 @@
+import numpy as np
+import torch
+
+from cdd_oran.planners.base import Planner
+from cdd_oran.planners.cost import weighted_distance
+
+
+class QACM(Planner):
+    def __init__(self, model, env):
+        self.model = model
+        self.env = env
+        self.xapps = env.xapps
+        self.num_bins = env.num_bins
+        self.num_params = env.num_params
+        self.action_space = env.action_space  # [num_params-1, num_bins-1, *max_bin_lengths]
+        self.name = "QACM"
+
+    def compute_utility(self, xapp, kpis):
+        return xapp.compute_utility(kpis)
+
+    def obtain_weighted_distance(self, xapp, utility):
+        return weighted_distance(xapp, utility)
+
+    def act(
+        self,
+        current_state,
+        conflict_param_index,
+        xapps_under_conflict,
+        weights_per_xapps,
+        scaling_term,
+    ):
+
+        s0 = current_state
+        pi = conflict_param_index
+        xapps = xapps_under_conflict
+        w = weights_per_xapps
+        tau = scaling_term
+
+        max_index = self.env.action_space[pi + 2]
+
+        pl_opt = None
+        min_cost = float("inf")
+
+        for bin_id in range(self.action_space[1] + 1):
+            for index in range(max_index + 1):
+                action = [pi, bin_id, index]
+
+                action_tensor = (
+                    torch.tensor(action, dtype=torch.float32).unsqueeze(0).to(self.model.device)
+                )
+
+                next_state_dist = self.model.predict_next_state(s0.unsqueeze(0), action_tensor)
+                # Model returns KPI portion only
+                next_state = next_state_dist.sample().squeeze(0)
+                next_kpis = next_state.cpu().numpy()
+
+                cost = np.zeros(len(xapps))
+                s = np.zeros(len(xapps))
+
+                for i, xapp in enumerate(xapps):
+                    u_i = self.compute_utility(xapp, next_kpis)
+                    d_i, s_i = self.obtain_weighted_distance(xapp, u_i)
+                    cost[i] = w[i] * d_i * tau
+                    s[i] = s_i
+
+                f_cost = cost.sum() - (s.sum()) ** 2
+
+                if f_cost < min_cost:
+                    min_cost = f_cost
+                    pl_opt = action
+
+        return pl_opt

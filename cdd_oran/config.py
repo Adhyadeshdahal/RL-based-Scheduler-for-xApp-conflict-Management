@@ -1,0 +1,128 @@
+from collections.abc import Iterable
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Literal
+
+import torch
+import yaml
+
+
+@dataclass(frozen=True)
+class ModelConfig:
+    lr: float
+    cmi_threshold: float
+    eval_tau: float
+    grad_clip: float
+    generative_fc_dims: tuple[int, ...]
+    feature_fc_dims: tuple[int, ...]
+    batch_size: int
+
+
+@dataclass(frozen=True)
+class TrainConfig:
+    total_steps: int
+    init_steps: int
+    inference_gradient_steps: int
+    eval_steps: int
+    plot_freq: int
+    test_batch_size: int
+
+
+@dataclass(frozen=True)
+class CEMConfig:
+    n_candidate: int
+    n_top: int
+    n_iter: int
+
+
+@dataclass(frozen=True)
+class MPPIConfig:
+    n_samples: int
+    temperature: float
+    noise_sigma: float
+
+
+@dataclass(frozen=True)
+class MCTSConfig:
+    n_simulations: int
+    ucb_c: float
+
+
+@dataclass(frozen=True)
+class PlannerConfig:
+    n_horizon: int
+    cem: CEMConfig
+    mppi: MPPIConfig
+    mcts: MCTSConfig
+
+
+@dataclass(frozen=True)
+class ExperimentConfig:
+    seed: int
+    environment: Literal["EnvironmentI", "EnvironmentII"]
+    model_kind: Literal["cdl", "mlp"]
+    param_ranges: Literal["train", "ood"]
+    num_steps: int
+    device: str
+    deterministic: bool
+    model: ModelConfig
+    train: TrainConfig
+    planner: PlannerConfig
+
+
+def load_config(path: str | Path, overrides: Iterable[str] = ()) -> ExperimentConfig:
+    path = Path(path)
+    if not path.is_absolute() and not path.exists():
+        path = Path(__file__).parent.parent / "configs" / path
+    with path.open() as config_file:
+        values = yaml.safe_load(config_file)
+
+    for override in overrides:
+        try:
+            key, value = override.split("=", 1)
+        except ValueError as error:
+            raise ValueError(f"Invalid override {override!r}; expected key=value") from error
+        target = values
+        *parents, leaf = key.split(".")
+        for parent in parents:
+            if parent not in target or not isinstance(target[parent], dict):
+                raise ValueError(f"Unknown config path: {key}")
+            target = target[parent]
+        if leaf not in target:
+            raise ValueError(f"Unknown config path: {key}")
+        target[leaf] = yaml.safe_load(value)
+
+    device = values["device"]
+    if device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    return ExperimentConfig(
+        seed=values["seed"],
+        environment=values["environment"],
+        model_kind=values["model_kind"],
+        param_ranges=values["param_ranges"],
+        num_steps=values["num_steps"],
+        device=device,
+        deterministic=values.get("deterministic", False),
+        model=ModelConfig(
+            **{
+                **values["model"],
+                "generative_fc_dims": tuple(values["model"]["generative_fc_dims"]),
+                "feature_fc_dims": tuple(values["model"]["feature_fc_dims"]),
+            }
+        ),
+        train=TrainConfig(**values["train"]),
+        planner=PlannerConfig(
+            n_horizon=values["planner"]["n_horizon"],
+            cem=CEMConfig(**values["planner"]["cem"]),
+            mppi=MPPIConfig(**values["planner"]["mppi"]),
+            mcts=MCTSConfig(**values["planner"]["mcts"]),
+        ),
+    )
+
+
+DEFAULT_CONFIG = load_config("env_i_mlp.yaml")
+
+
+def config_dict(cfg: ExperimentConfig) -> dict[str, Any]:
+    return asdict(cfg)

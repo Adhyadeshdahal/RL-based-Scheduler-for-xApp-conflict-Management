@@ -56,27 +56,25 @@ warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
 module = [
-    "Algorithms.QACM",
-    "Algorithms.model_based_cem",
-    "Algorithms.model_based_mcts",
-    "Algorithms.model_based_mppi",
-    "Algorithms",
-    "Environment.Environment_I",
-    "Environment.Environment_II",
-    "Environment",
-    "Models.CDL",
-    "Models.MLP",
-    "Models",
-    "Policies.RandomPolicy",
-    "Policies",
-    "env_statistics.EnvironmentI_mean_std",
-    "env_statistics.EnvironmentII_mean_std",
-    "env_statistics.cache",
-    "env_statistics",
-    "viz.*",
-    "main",
-    "evaluate_algorithms",
-    "visualize",
+    "cdd_oran.planners.qacm",
+    "cdd_oran.planners.cem",
+    "cdd_oran.planners.mcts",
+    "cdd_oran.planners.mppi",
+    "cdd_oran.planners",
+    "cdd_oran.conflicts",
+    "cdd_oran.envs.env_i",
+    "cdd_oran.envs.env_ii",
+    "cdd_oran.envs",
+    "cdd_oran.models.cdl",
+    "cdd_oran.models.mlp",
+    "cdd_oran.models",
+    "cdd_oran.policies.random_policy",
+    "cdd_oran.policies",
+    "cdd_oran.envs.statistics",
+    "cdd_oran.envs.stats_cache",
+    "cdd_oran.viz.*",
+    "cdd_oran.experiments.*",
+    "cdd_oran.cli",
     "cli",
     "tests.*",
 ]
@@ -90,7 +88,7 @@ warn_return_any = false
 warn_unused_ignores = false
 
 [[tool.mypy.overrides]]
-module = ["viz.*"]
+module = ["cdd_oran.viz.*"]
 disable_error_code = ["arg-type", "attr-defined"]
 
 [[tool.mypy.overrides]]

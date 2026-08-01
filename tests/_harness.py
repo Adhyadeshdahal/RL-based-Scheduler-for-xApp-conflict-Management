@@ -35,7 +35,7 @@ PLANNER_KWARGS = {
     "ModelBasedMPPI": dict(n_samples=256, temperature=0.6, noise_sigma=0.1),
     "ModelBasedMCTS": dict(n_simulations=8, ucb_c=1.5),
 }
-SCALING_TERM = 10  # matches evaluate_algorithms.py:324
+SCALING_TERM = 10  # matches cdd_oran/experiments/evaluate.py:324
 
 ENV_NAMES = ["EnvironmentI", "EnvironmentII"]
 MODEL_KINDS = ["CDL", "MLP"]
@@ -48,8 +48,8 @@ def seed_all(seed: int) -> None:
 
 
 def build_env(env_name: str):
-    from config import DEFAULT_CONFIG
-    from Environment import get_env
+    from cdd_oran.config import DEFAULT_CONFIG
+    from cdd_oran.envs import get_env
 
     # Seed before construction: Param.__init__ draws from np.random.
     seed_all(BASE_SEED)
@@ -59,8 +59,8 @@ def build_env(env_name: str):
 
 
 def build_model(kind: str, env):
-    from Models.CDL import CDL
-    from Models.MLP import MLPInference
+    from cdd_oran.models.cdl import CDL
+    from cdd_oran.models.mlp import MLPInference
 
     seed_all(BASE_SEED)
     cls = CDL if kind == "CDL" else MLPInference
@@ -75,10 +75,10 @@ def build_model(kind: str, env):
 
 
 def build_planners(model, env):
-    from Algorithms.model_based_cem import ModelBasedCEM
-    from Algorithms.model_based_mcts import ModelBasedMCTS
-    from Algorithms.model_based_mppi import ModelBasedMPPI
-    from Algorithms.QACM import QACM
+    from cdd_oran.planners.cem import ModelBasedCEM
+    from cdd_oran.planners.mcts import ModelBasedMCTS
+    from cdd_oran.planners.mppi import ModelBasedMPPI
+    from cdd_oran.planners.qacm import QACM
 
     return [
         QACM(model=model, env=env),
@@ -109,7 +109,7 @@ def _model_probe(model, env, state_t) -> list:
     a = torch.tensor([[0.0, 1.0, 2.0]], dtype=torch.float32, device=DEVICE)
     seed_all(BASE_SEED)
     with torch.no_grad():
-        dist = model.predictNextState(s, a)
+        dist = model.predict_next_state(s, a)
     return [
         [round(float(v), 8) for v in dist.mean.flatten().tolist()],
         [round(float(v), 8) for v in dist.scale.flatten().tolist()],
@@ -118,7 +118,7 @@ def _model_probe(model, env, state_t) -> list:
 
 def record(env_name: str, model_kind: str) -> dict:
     """Produce the full deterministic record for one (env, model) pair."""
-    from evaluate_algorithms import (
+    from cdd_oran.conflicts import (
         compute_utility,
         denormalize_params,
         detect_conflict_edges,
