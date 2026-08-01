@@ -1,7 +1,7 @@
 # Train Test Environment and method
 import torch
 from datetime import datetime
-from Tests import get_envII_mean_std, get_envI_mean_std
+from env_statistics import get_envII_mean_std, get_envI_mean_std
 
 SEED = 0
 IS_TRAIN = False  # Set to False for evaluation only
