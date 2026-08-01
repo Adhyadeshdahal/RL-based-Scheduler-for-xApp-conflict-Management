@@ -1,10 +1,20 @@
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import networkx as nx
 
 from cdd_oran.models.base import CausalModel
 
 
-def visualize_causal_graph(model: CausalModel, threshold=None):
+def visualize_causal_graph(
+    model: CausalModel,
+    threshold=None,
+    output_path: str | Path = "causal-graph.png",
+    show: bool = False,
+) -> Path:
+    if not show:
+        plt.switch_backend("Agg")
+
     graph = model.get_binary_graph(threshold=threshold).cpu().numpy()
     fd = graph.shape[0]
     graph_view = nx.DiGraph()
@@ -33,7 +43,7 @@ def visualize_causal_graph(model: CausalModel, threshold=None):
     kpi_to_kpi_edges = [(u, v) for u, v in graph_view.edges() if u in kpi_nodes and v in kpi_nodes]
     ncp_to_ncp_edges = [(u, v) for u, v in graph_view.edges() if u in ncp_nodes and v in ncp_nodes]
 
-    plt.figure(figsize=(12, 6))
+    fig = plt.figure(figsize=(12, 6))
 
     nx.draw_networkx_nodes(
         graph_view,
@@ -109,4 +119,10 @@ def visualize_causal_graph(model: CausalModel, threshold=None):
     plt.title("Causal Graph")
     plt.axis("off")
     plt.tight_layout()
-    plt.show()
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    if show:
+        plt.show()
+    plt.close(fig)
+    return output_path

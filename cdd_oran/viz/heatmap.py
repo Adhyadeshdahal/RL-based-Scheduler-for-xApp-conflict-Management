@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import matplotlib.widgets as widgets
@@ -44,10 +45,24 @@ def _draw_heatmap(model: CausalModel, cmi, threshold, with_slider=False):
     return fig, binary_image, title
 
 
-def visualize_cmi_heatmap(model: CausalModel, threshold=None):
+def visualize_cmi_heatmap(
+    model: CausalModel,
+    threshold=None,
+    output_path: str | Path = "cmi-heatmap.png",
+    show: bool = False,
+) -> Path:
+    if not show:
+        plt.switch_backend("Agg")
+
     threshold = model.cmi_threshold if threshold is None else threshold
-    _draw_heatmap(model, _cmi(model), threshold)
-    plt.show()
+    fig, _, _ = _draw_heatmap(model, _cmi(model), threshold)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    if show:
+        plt.show()
+    plt.close(fig)
+    return output_path
 
 
 def select_cmi_threshold(model: CausalModel):
