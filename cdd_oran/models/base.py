@@ -6,6 +6,9 @@ from torch.distributions import Distribution
 
 
 class WorldModel(ABC):
+    kpi_start: int
+    node_names: list[str]
+
     @abstractmethod
     def train_step(self, s_batch: torch.Tensor, a_batch: torch.Tensor) -> float: ...
 
@@ -25,6 +28,8 @@ class WorldModel(ABC):
 
 
 class CausalModel(WorldModel):
+    cmi_threshold: float
+
     @abstractmethod
     def update_mask(self, s_batch: torch.Tensor, a_batch: torch.Tensor) -> None: ...
 

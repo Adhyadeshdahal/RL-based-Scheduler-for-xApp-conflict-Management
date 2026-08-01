@@ -21,9 +21,9 @@ package = false
 
 [dependency-groups]
 dev = [
-    "mypy>=2.3.0",
     "pytest>=9.1.1",
     "ruff>=0.9",
+    "ty>=0.0.65",
 ]
 
 [tool.pytest.ini_options]
@@ -40,57 +40,5 @@ ignore = [
     "E501",   # line length -- the formatter owns this
 ]
 
-[tool.mypy]
-python_version = "3.12"
-ignore_missing_imports = true
-check_untyped_defs = true
-disallow_any_generics = true
-disallow_untyped_defs = true
-no_implicit_optional = true
-strict_equality = true
-warn_no_return = true
-warn_redundant_casts = true
-warn_return_any = true
-warn_unused_configs = true
-warn_unused_ignores = true
-
-[[tool.mypy.overrides]]
-module = [
-    "cdd_oran.planners.qacm",
-    "cdd_oran.planners.cem",
-    "cdd_oran.planners.mcts",
-    "cdd_oran.planners.mppi",
-    "cdd_oran.planners",
-    "cdd_oran.conflicts",
-    "cdd_oran.envs.env_i",
-    "cdd_oran.envs.env_ii",
-    "cdd_oran.envs",
-    "cdd_oran.models.cdl",
-    "cdd_oran.models.mlp",
-    "cdd_oran.models",
-    "cdd_oran.policies.random_policy",
-    "cdd_oran.policies",
-    "cdd_oran.envs.statistics",
-    "cdd_oran.envs.stats_cache",
-    "cdd_oran.viz.*",
-    "cdd_oran.experiments.*",
-    "cdd_oran.cli",
-    "cli",
-    "tests.*",
-]
-check_untyped_defs = false
-disallow_any_generics = false
-disallow_untyped_defs = false
-no_implicit_optional = false
-strict_equality = false
-warn_no_return = false
-warn_return_any = false
-warn_unused_ignores = false
-
-[[tool.mypy.overrides]]
-module = ["cdd_oran.viz.*"]
-disable_error_code = ["arg-type", "attr-defined"]
-
-[[tool.mypy.overrides]]
-module = ["tests.*"]
-disable_error_code = ["arg-type", "attr-defined"]
+[tool.ty.environment]
+python-version = "3.12"

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import replace
+from typing import TypedDict
 
 import numpy as np
 import torch
@@ -30,11 +31,28 @@ MODEL_KWARGS = dict(
     feature_fc_dims=[64, 64],
     lr=1e-3,
 )
-PLANNER_KWARGS = {
-    "ModelBasedCEM": dict(n_candidate=64, n_top=32, n_iter=5),
-    "ModelBasedMPPI": dict(n_samples=256, temperature=0.6, noise_sigma=0.1),
-    "ModelBasedMCTS": dict(n_simulations=8, ucb_c=1.5),
-}
+
+
+class CEMPlannerKwargs(TypedDict):
+    n_candidate: int
+    n_top: int
+    n_iter: int
+
+
+class MPPIPlannerKwargs(TypedDict):
+    n_samples: int
+    temperature: float
+    noise_sigma: float
+
+
+class MCTSPlannerKwargs(TypedDict):
+    n_simulations: int
+    ucb_c: float
+
+
+CEM_KWARGS: CEMPlannerKwargs = dict(n_candidate=64, n_top=32, n_iter=5)
+MPPI_KWARGS: MPPIPlannerKwargs = dict(n_samples=256, temperature=0.6, noise_sigma=0.1)
+MCTS_KWARGS: MCTSPlannerKwargs = dict(n_simulations=8, ucb_c=1.5)
 SCALING_TERM = 10  # matches cdd_oran/experiments/evaluate.py:324
 
 ENV_NAMES = ["EnvironmentI", "EnvironmentII"]
@@ -82,9 +100,9 @@ def build_planners(model, env):
 
     return [
         QACM(model=model, env=env),
-        ModelBasedCEM(model=model, env=env, **PLANNER_KWARGS["ModelBasedCEM"]),
-        ModelBasedMPPI(model=model, env=env, **PLANNER_KWARGS["ModelBasedMPPI"]),
-        ModelBasedMCTS(model=model, env=env, **PLANNER_KWARGS["ModelBasedMCTS"]),
+        ModelBasedCEM(model=model, env=env, **CEM_KWARGS),
+        ModelBasedMPPI(model=model, env=env, **MPPI_KWARGS),
+        ModelBasedMCTS(model=model, env=env, **MCTS_KWARGS),
     ]
 
 

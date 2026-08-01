@@ -50,9 +50,6 @@ def main(
     run_dir = Path(run_dir)
     checkpoint_path = run_dir / "checkpoint.pt"
 
-    if cfg.model_kind == "mlp" and (graph_run is None or graph_cfg is None):
-        raise ValueError("MLP evaluation requires --graph-run pointing to a trained CDL run")
-
     env = get_env(cfg)
     act_dim = env.get_action_dim()
     model = get_model(cfg, env)
@@ -64,6 +61,8 @@ def main(
     if cfg.model_kind == "cdl":
         cdl = model
     else:
+        if graph_run is None or graph_cfg is None:
+            raise ValueError("MLP evaluation requires --graph-run pointing to a trained CDL run")
         if graph_cfg.model_kind != "cdl":
             raise ValueError("--graph-run must contain a CDL configuration")
         if graph_cfg.environment != cfg.environment:

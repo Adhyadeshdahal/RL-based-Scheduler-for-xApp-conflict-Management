@@ -27,8 +27,8 @@ class ReplayBufferDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-    def __getitem__(self, idx):
-        s, a, s_next = self.data[idx]
+    def __getitem__(self, index):
+        s, a, s_next = self.data[index]
         return s, a, s_next
 
     def add(self, s, a, s_next):

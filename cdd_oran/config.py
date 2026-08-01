@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import torch
 import yaml
@@ -75,7 +75,7 @@ def load_config(path: str | Path, overrides: Iterable[str] = ()) -> ExperimentCo
     if not path.is_absolute() and not path.exists():
         path = Path(__file__).parent.parent / "configs" / path
     with path.open() as config_file:
-        values = yaml.safe_load(config_file)
+        values = cast(dict[str, Any], yaml.safe_load(config_file))
 
     for override in overrides:
         try:
@@ -105,11 +105,13 @@ def load_config(path: str | Path, overrides: Iterable[str] = ()) -> ExperimentCo
         device=device,
         deterministic=values.get("deterministic", False),
         model=ModelConfig(
-            **{
-                **values["model"],
-                "generative_fc_dims": tuple(values["model"]["generative_fc_dims"]),
-                "feature_fc_dims": tuple(values["model"]["feature_fc_dims"]),
-            }
+            lr=cast(float, values["model"]["lr"]),
+            cmi_threshold=cast(float, values["model"]["cmi_threshold"]),
+            eval_tau=cast(float, values["model"]["eval_tau"]),
+            grad_clip=cast(float, values["model"]["grad_clip"]),
+            generative_fc_dims=tuple(cast(list[int], values["model"]["generative_fc_dims"])),
+            feature_fc_dims=tuple(cast(list[int], values["model"]["feature_fc_dims"])),
+            batch_size=cast(int, values["model"]["batch_size"]),
         ),
         train=TrainConfig(**values["train"]),
         planner=PlannerConfig(

@@ -160,7 +160,7 @@ class BaseORANEnv(gym.Env[Any, Any]):
 
         return utility
 
-    def reset(self) -> dict[str, np.ndarray]:  # type: ignore[override]
+    def reset(self) -> dict[str, np.ndarray]:  # ty: ignore[invalid-method-override] -- Legacy Gym 4-tuple API is intentional.
         self.cur_step = 0
         for param in self.params:
             low, high = param.get_threshold()
@@ -175,7 +175,7 @@ class BaseORANEnv(gym.Env[Any, Any]):
     def reward(self, new_kpis: list[KPI], next_kpis: list[float]) -> float:
         return sum(next_kpis)
 
-    def step(  # type: ignore[override]
+    def step(  # ty: ignore[invalid-method-override] -- Legacy Gym 4-tuple API is intentional.
         self, action: tuple[int, int, int]
     ) -> tuple[dict[str, np.ndarray], float, bool, dict[str, bool]]:
         param_id, bin_id, index = (int(value) for value in action)

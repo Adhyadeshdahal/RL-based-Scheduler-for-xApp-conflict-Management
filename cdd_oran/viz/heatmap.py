@@ -54,7 +54,7 @@ def select_cmi_threshold(model: CausalModel):
     cmi = _cmi(model)
     fig, binary_image, title = _draw_heatmap(model, cmi, model.cmi_threshold, with_slider=True)
 
-    ax_slider = plt.axes([0.25, 0.12, 0.5, 0.03])
+    ax_slider = plt.axes((0.25, 0.12, 0.5, 0.03))
     slider = widgets.Slider(
         ax_slider,
         "Threshold",
@@ -63,7 +63,7 @@ def select_cmi_threshold(model: CausalModel):
         valinit=model.cmi_threshold,
         valstep=0.01,
     )
-    ax_button = plt.axes([0.45, 0.04, 0.1, 0.04])
+    ax_button = plt.axes((0.45, 0.04, 0.1, 0.04))
     button = widgets.Button(ax_button, "Confirm")
 
     def update(_):

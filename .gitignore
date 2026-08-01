@@ -7,7 +7,6 @@ wheels/
 *.egg-info
 
 # Tool caches. These self-ignore via a nested .gitignore, but do not rely on that.
-.mypy_cache/
 .pytest_cache/
 .ruff_cache/
 .cache/
