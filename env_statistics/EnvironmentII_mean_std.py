@@ -1,5 +1,6 @@
 import numpy as np
 import time
+from env_statistics.cache import get_cached_mean_std
 
 
 NUM_SAMPLES = 1_000_000
@@ -32,10 +33,14 @@ def get_mean_std(param_ranges, seed, num_samples=NUM_SAMPLES):
     Given a list of (low, high) param ranges, returns MEAN_STD_KPIS
     as a list of (mean, std) tuples, one per KPI.
     """
-    rng = np.random.default_rng(seed)
-    params = [rng.uniform(low, high, size=num_samples) for low, high in param_ranges]
-    kpis = compute_kpis(params)
-    return [(float(np.mean(k)), float(np.std(k))) for k in kpis]
+
+    def compute():
+        rng = np.random.default_rng(seed)
+        params = [rng.uniform(low, high, size=num_samples) for low, high in param_ranges]
+        kpis = compute_kpis(params)
+        return [(float(np.mean(k)), float(np.std(k))) for k in kpis]
+
+    return get_cached_mean_std("EnvironmentII", param_ranges, seed, num_samples, compute)
 
 
 if __name__ == "__main__":

@@ -62,7 +62,6 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #                                   ENVIRONMENT II
 
-ENVIRONMENT_II_MEAN_STDS = []
 ENVIRONMENT_II_PARAM_RANGES = []
 if IS_TEST:
     ENVIRONMENT_II_PARAM_RANGES = [
@@ -75,12 +74,6 @@ if IS_TEST:
         (66, 87),
         (-200, 150),
     ]
-    ENVIRONMENT_II_MEAN_STDS = get_envII_mean_std(ENVIRONMENT_II_PARAM_RANGES, seed=SEED)
-
-    if ENVIRONMENT == "EnvironmentII":
-        print(f"ENVIRONMENT_II_PARAM_RANGES: {ENVIRONMENT_II_PARAM_RANGES}")
-        print(f"ENVIRONMENT_II_MEAN_STDS: {ENVIRONMENT_II_MEAN_STDS}")
-
 else:
     ENVIRONMENT_II_PARAM_RANGES = [
         (-100, 100),
@@ -92,16 +85,8 @@ else:
         (-60, 65),
         (-100, 150),
     ]
-    ENVIRONMENT_II_MEAN_STDS = get_envII_mean_std(ENVIRONMENT_II_PARAM_RANGES, seed=SEED)
-
-    if ENVIRONMENT == "EnvironmentII":
-        print(f"ENVIRONMENT_II_MEAN_STDS: {ENVIRONMENT_II_MEAN_STDS}")
-        print(f"ENVIRONMENT_II_PARAM_RANGES: {ENVIRONMENT_II_PARAM_RANGES}")
-
-
 #                                           ENVIRONMENT I
 
-ENVIRONMENT_I_MEAN_STDS = []
 ENVIRONMENT_I_PARAM_RANGES = []
 
 if IS_TEST:
@@ -114,11 +99,6 @@ if IS_TEST:
         (0, 3),  # P6
         (0, 3),  # P7
     ]
-    ENVIRONMENT_I_MEAN_STDS = get_envI_mean_std(ENVIRONMENT_I_PARAM_RANGES, seed=SEED)
-    if ENVIRONMENT == "EnvironmentI":
-        print(f"ENVIRONMENT_I_PARAM_RANGES: {ENVIRONMENT_I_PARAM_RANGES}")
-        print(f"ENVIRONMENT_I_MEAN_STDS: {ENVIRONMENT_I_MEAN_STDS}")
-
 else:
     ENVIRONMENT_I_PARAM_RANGES = [
         (0, 300),  # P1
@@ -129,7 +109,15 @@ else:
         (0, 3),  # P6
         (0, 3),  # P7
     ]
-    ENVIRONMENT_I_MEAN_STDS = get_envI_mean_std(ENVIRONMENT_I_PARAM_RANGES, seed=SEED)
-    if ENVIRONMENT == "EnvironmentI":
-        print(f"ENVIRONMENT_I_PARAM_RANGES: {ENVIRONMENT_I_PARAM_RANGES}")
-        print(f"ENVIRONMENT_I_MEAN_STDS: {ENVIRONMENT_I_MEAN_STDS}")
+
+
+def __getattr__(name):
+    if name == "ENVIRONMENT_I_MEAN_STDS":
+        value = get_envI_mean_std(ENVIRONMENT_I_PARAM_RANGES, seed=SEED)
+    elif name == "ENVIRONMENT_II_MEAN_STDS":
+        value = get_envII_mean_std(ENVIRONMENT_II_PARAM_RANGES, seed=SEED)
+    else:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    globals()[name] = value
+    return value
