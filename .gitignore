@@ -26,3 +26,5 @@ rslts/*
 !conflict_resolution_techniques.png
 
 runs/*
+sweeps/
+results/

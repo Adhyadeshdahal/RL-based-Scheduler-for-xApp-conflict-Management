@@ -5,6 +5,7 @@ from pathlib import Path
 
 from config import load_config
 from utils.logging import configure_logging
+from utils.sweeps import aggregate, append_run, graph_run_for_seed
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,30 @@ def build_parser():
     viz.add_argument("--run", required=True, help="CDL training run containing checkpoint.pt")
     viz.add_argument("--figure", choices=("causal-graph", "cmi-heatmap"), default="causal-graph")
     _add_log_level(viz)
+
+    sweep = commands.add_parser("sweep", help="Train and evaluate one run per seed")
+    sweep.add_argument("--config", required=True, help="YAML experiment config")
+    sweep.add_argument("--seeds", required=True, help="Comma-separated training seeds")
+    sweep.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Override a dotted config path",
+    )
+    sweep.add_argument("--tag", help="Sweep manifest name under sweeps/")
+    sweep.add_argument(
+        "--graph-sweep",
+        help="Required for MLP: manifest containing one trained CDL run for each seed",
+    )
+    _add_log_level(sweep)
+
+    aggregate_parser = commands.add_parser(
+        "aggregate", help="Aggregate utilities across sweep seeds"
+    )
+    aggregate_parser.add_argument("--sweep", action="append", required=True, help="Sweep directory")
+    aggregate_parser.add_argument("--out", help="Output directory (default: results/<sweep-tag>)")
+    _add_log_level(aggregate_parser)
     return parser
 
 
@@ -72,6 +97,37 @@ def main(argv=None):
             from evaluate_algorithms import main as evaluate
 
             return evaluate(cfg, run_dir=args.run, graph_run=args.graph_run, graph_cfg=graph_cfg)
+
+        if args.command == "sweep":
+            seeds = [int(seed) for seed in args.seeds.split(",")]
+            if not seeds or len(set(seeds)) != len(seeds):
+                raise ValueError("--seeds must contain unique comma-separated integers")
+            cfg = load_config(args.config, args.set)
+            tag = args.tag or Path(args.config).stem
+            sweep_dir = Path("sweeps") / tag
+            from evaluate_algorithms import main as evaluate
+            from main import main as train
+
+            for seed in seeds:
+                run_cfg = replace(cfg, seed=seed)
+                run_dir = train(run_cfg)
+                graph_run = None
+                graph_cfg = None
+                if run_cfg.model_kind == "mlp":
+                    if not args.graph_sweep:
+                        raise ValueError("MLP sweeps require --graph-sweep")
+                    graph_run = graph_run_for_seed(args.graph_sweep, seed)
+                    graph_cfg = _load_run_config(graph_run, None)
+                evaluate(run_cfg, run_dir=run_dir, graph_run=graph_run, graph_cfg=graph_cfg)
+                append_run(sweep_dir, run_dir, run_cfg)
+                logger.info("Sweep %s completed seed %d: %s", tag, seed, run_dir)
+            return 0
+
+        if args.command == "aggregate":
+            output_dir = args.out or Path("results") / Path(args.sweep[0]).name
+            aggregate(args.sweep, output_dir)
+            logger.info("Aggregate written to %s", output_dir)
+            return 0
 
         cfg = _load_run_config(args.run, None)
         from visualize import main as visualize
