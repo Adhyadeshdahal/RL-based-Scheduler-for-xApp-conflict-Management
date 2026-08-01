@@ -3,7 +3,7 @@ import time
 
 
 NUM_SAMPLES = 1_000_000
-CHUNK       = 100_000
+CHUNK = 100_000
 
 
 def safe_exp(x):
@@ -36,10 +36,10 @@ def compute_kpis(params):
     p5_safe = safe_exp(p5)
     p6_safe = safe_exp(p6)
 
-    kpi1 = 0.5 * np.exp(-(p1 + 50) ** 2 / (2 * p2_safe) ** 2)
-    kpi2 =       np.exp(-(p1 - 50) ** 2 / (2 * p3_safe) ** 2)
-    kpi3 =       np.exp(-(p4 + kpi1)    ** 2 / (2 * p5_safe) ** 2)
-    kpi4 =       np.exp(-(p7 + kpi2)    ** 2 / (2 * p6_safe) ** 2)
+    kpi1 = 0.5 * np.exp(-((p1 + 50) ** 2) / (2 * p2_safe) ** 2)
+    kpi2 = np.exp(-((p1 - 50) ** 2) / (2 * p3_safe) ** 2)
+    kpi3 = np.exp(-((p4 + kpi1) ** 2) / (2 * p5_safe) ** 2)
+    kpi4 = np.exp(-((p7 + kpi2) ** 2) / (2 * p6_safe) ** 2)
 
     return [kpi1, kpi2, kpi3, kpi4]
 
@@ -54,9 +54,9 @@ def get_mean_std(param_ranges, seed, num_samples=NUM_SAMPLES):
 
     Returns list of (mean, std) tuples: [(m1,s1), (m2,s2), (m3,s3), (m4,s4)]
     """
-    rng    = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed)
     params = [rng.uniform(low, high, size=num_samples) for low, high in param_ranges]
-    kpis   = compute_kpis(params)
+    kpis = compute_kpis(params)
     return [(float(np.mean(k)), float(np.std(k))) for k in kpis]
 
 
@@ -64,16 +64,16 @@ if __name__ == "__main__":
     PARAM_RANGES = [
         (0, 300),  # P1
         (0, 300),  # P2
-        (0, 3),    # P3
-        (0, 3),    # P4
-        (0, 3),    # P5
-        (0, 3),    # P6
-        (0, 3),    # P7
+        (0, 3),  # P3
+        (0, 3),  # P4
+        (0, 3),  # P5
+        (0, 3),  # P6
+        (0, 3),  # P7
     ]
     KPI_NAMES = ["KPI1", "KPI2", "KPI3", "KPI4"]
-    SEED      = 45
+    SEED = 45
 
-    t0       = time.perf_counter()
+    t0 = time.perf_counter()
     mean_std = get_mean_std(PARAM_RANGES, seed=SEED)
     print("MEAN_STD_KPIS = [")
     for name, (mean, std) in zip(KPI_NAMES, mean_std):

@@ -20,3 +20,24 @@ dependencies = [
 # project is imported from the working directory. This flips to `true` in Phase 1,
 # once the `cdd_oran/` package layout lands (see REFACTOR_PLAN.md).
 package = false
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# Report-only for now. The codebase relies on `from Parameters import *` and on
+# re-exporting `__init__.py` modules, so autofixing "unused" imports (F401/F403)
+# would break imports. Enable enforcement in Phase 6.3, after Phase 1 removes the
+# star-imports. Run `uv run ruff check .` to see the current findings.
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",   # line length -- the formatter owns this
+    "F403",   # star-import: intentional today, removed in Phase 1.4
+    "F405",   # name may be from star-import: consequence of F403
+]

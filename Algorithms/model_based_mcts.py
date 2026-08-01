@@ -6,16 +6,16 @@ from Parameters import *
 
 class MCTSNode:
     """A single node in the search tree, representing one (bin_id, index) action."""
-    __slots__ = ("action", "parent", "children",
-                 "visits", "total_cost", "untried")
+
+    __slots__ = ("action", "parent", "children", "visits", "total_cost", "untried")
 
     def __init__(self, action, parent, untried_actions):
-        self.action     = action
-        self.parent     = parent
-        self.children   = []
-        self.visits     = 0
+        self.action = action
+        self.parent = parent
+        self.children = []
+        self.visits = 0
         self.total_cost = 0.0
-        self.untried    = list(untried_actions)
+        self.untried = list(untried_actions)
 
 
 class ModelBasedMCTS:
@@ -28,19 +28,19 @@ class ModelBasedMCTS:
         self,
         model,
         env,
-        n_simulations = N_SIMULATIONS,
-        ucb_c         = USB_C,
+        n_simulations=N_SIMULATIONS,
+        ucb_c=USB_C,
     ):
-        self.model         = model
-        self.env           = env
-        self.xapps         = env.xapps
-        self.num_bins      = env.num_bins
-        self.num_params    = env.num_params
-        self.action_space  = env.action_space
+        self.model = model
+        self.env = env
+        self.xapps = env.xapps
+        self.num_bins = env.num_bins
+        self.num_params = env.num_params
+        self.action_space = env.action_space
         self.n_simulations = n_simulations
-        self.ucb_c         = ucb_c
-        self.device        = model.device
-        self.name          = "ModelBasedMCTS"
+        self.ucb_c = ucb_c
+        self.device = model.device
+        self.name = "ModelBasedMCTS"
 
     def act(
         self,
@@ -50,11 +50,11 @@ class ModelBasedMCTS:
         weights_per_xapps,
         scaling_term,
     ):
-        s0    = current_state
-        pi    = conflict_param_index
+        s0 = current_state
+        pi = conflict_param_index
         xapps = xapps_under_conflict
-        w     = weights_per_xapps
-        tau   = scaling_term
+        w = weights_per_xapps
+        tau = scaling_term
 
         # FIX 3: use per-param bin-length as upper bound for index
         max_index = self.env.action_space[pi + 2]
@@ -63,7 +63,7 @@ class ModelBasedMCTS:
         # index choices. This gives the tree depth=2 and proper UCB1 guidance,
         # instead of all 200 leaf actions crammed into the root's untried list.
         bin_ids = list(range(self.action_space[1] + 1))
-        root    = MCTSNode(action=None, parent=None, untried_actions=bin_ids)
+        root = MCTSNode(action=None, parent=None, untried_actions=bin_ids)
 
         for _ in range(self.n_simulations):
             node = root
@@ -77,7 +77,7 @@ class ModelBasedMCTS:
                 if node.action is None:
                     # Expanding root: create a bin_id child
                     bin_id = node.untried.pop()
-                    index_choices = list(range(max_index + 1))   # FIX 3
+                    index_choices = list(range(max_index + 1))  # FIX 3
                     child = MCTSNode(
                         action=bin_id,
                         parent=node,
@@ -100,22 +100,21 @@ class ModelBasedMCTS:
             else:
                 # Still at a bin_id node — do a random rollout
                 if node.action is not None:
-                    rand_idx = np.random.randint(0, max_index + 1)   # FIX 3
-                    cost     = self._evaluate((node.action, rand_idx),
-                                              pi, s0, xapps, w, tau)
+                    rand_idx = np.random.randint(0, max_index + 1)  # FIX 3
+                    cost = self._evaluate((node.action, rand_idx), pi, s0, xapps, w, tau)
                 else:
                     cost = 0.0
 
             # ── Backpropagation ────────────────────────────────────────
             while node is not None:
-                node.visits     += 1
+                node.visits += 1
                 node.total_cost += cost
                 node = node.parent
 
         # Pick the best (bin_id, index) leaf among all depth-2 children
-        best_cost  = float('inf')
-        best_bin   = 0
-        best_idx   = 0
+        best_cost = float("inf")
+        best_bin = 0
+        best_idx = 0
         for bin_node in root.children:
             for leaf in bin_node.children:
                 if leaf.visits == 0:
@@ -136,37 +135,35 @@ class ModelBasedMCTS:
                 # but don't dominate once the tree has grown
                 return 1e9
             avg_cost = child.total_cost / child.visits
-            explore  = self.ucb_c * math.sqrt(log_parent / child.visits)
+            explore = self.ucb_c * math.sqrt(log_parent / child.visits)
             return -(avg_cost - explore)  # higher = better (lower cost)
 
         return max(node.children, key=ucb_score)
 
     def _evaluate(self, action_2d, pi, s0, xapps, w, tau) -> float:
-        bin_id, idx   = action_2d
-        action_tensor = torch.tensor(
-            [pi, bin_id, idx], dtype=torch.float32
-        ).unsqueeze(0).to(self.device)
-
-        next_state_dist = self.model.predictNextState(
-            s0.unsqueeze(0).float(), action_tensor
+        bin_id, idx = action_2d
+        action_tensor = (
+            torch.tensor([pi, bin_id, idx], dtype=torch.float32).unsqueeze(0).to(self.device)
         )
+
+        next_state_dist = self.model.predictNextState(s0.unsqueeze(0).float(), action_tensor)
         # Model returns KPI portion only
         next_state = next_state_dist.sample().squeeze(0)
-        kpis       = next_state.cpu().detach().numpy()
+        kpis = next_state.cpu().detach().numpy()
 
         cost_vec = np.zeros(len(xapps))
-        sat_vec  = np.zeros(len(xapps))
+        sat_vec = np.zeros(len(xapps))
         for i, xapp in enumerate(xapps):
-            u           = xapp.compute_utility(kpis)
-            d, s        = self._weighted_distance(xapp, u, i)
+            u = xapp.compute_utility(kpis)
+            d, s = self._weighted_distance(xapp, u, i)
             cost_vec[i] = w[i] * d * tau
-            sat_vec[i]  = s
+            sat_vec[i] = s
         f_cost = cost_vec.sum() - (sat_vec.sum()) ** 2
         return float(f_cost)
 
     def _weighted_distance(self, xapp, utility, xapp_idx):
         # FIX 2: normalise raw KPI threshold into z-score space
-        mean, std      = xapp.mean, xapp.std
+        mean, std = xapp.mean, xapp.std
         norm_threshold = (xapp.threshold - mean) / std
 
         if xapp.direction == 0:

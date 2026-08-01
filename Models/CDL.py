@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 
 
 class MLP(nn.Module):
-
     def __init__(self, input_dim, output_dim, hidden_layers):
         super().__init__()
         layers = []
@@ -26,10 +25,9 @@ class MLP(nn.Module):
 
 
 class StatePredictor(nn.Module):
-
     def __init__(self, state_dim, action_dim, feature_dim, pred_hidden):
         super().__init__()
-        self.state_dim  = state_dim
+        self.state_dim = state_dim
         self.action_dim = action_dim
 
         self.state_feature_extractors = nn.ModuleList(
@@ -50,25 +48,25 @@ class StatePredictor(nn.Module):
 
         feats = []
         for i in range(fd):
-            feats.append(self.state_feature_extractors[i](s[:, i:i+1]))
+            feats.append(self.state_feature_extractors[i](s[:, i : i + 1]))
 
         feats.append(self.action_feature_extractor(a))
-        feats = torch.stack(feats, dim=1)                         # (bs, fd+1, feature_dim)
+        feats = torch.stack(feats, dim=1)  # (bs, fd+1, feature_dim)
 
         if mask is not None:
-            feats = feats.masked_fill(mask.unsqueeze(-1), float('-inf'))
+            feats = feats.masked_fill(mask.unsqueeze(-1), float("-inf"))
 
-        h, _ = feats.max(dim=1)                                   # (bs, feature_dim)
+        h, _ = feats.max(dim=1)  # (bs, feature_dim)
 
-        out     = self.predictor(h)
-        mu      = out[:, 0:1]
+        out = self.predictor(h)
+        mu = out[:, 0:1]
         log_std = out[:, 1:2]
-        std     = torch.exp(torch.clamp(log_std, -5, 2)) + 1e-4
+        std = torch.exp(torch.clamp(log_std, -5, 2)) + 1e-4
 
         return mu, std
 
-class CDL:
 
+class CDL:
     def __init__(
         self,
         state_dim,
@@ -82,14 +80,14 @@ class CDL:
         eval_steps=10,
         grad_clip=10.0,
         device=None,
-        node_names=None
+        node_names=None,
     ):
-        self.state_dim     = state_dim
-        self.action_dim    = action_dim
+        self.state_dim = state_dim
+        self.action_dim = action_dim
         self.cmi_threshold = cmi_threshold
-        self.eval_tau      = eval_tau
-        self.eval_steps    = eval_steps
-        self.grad_clip     = grad_clip
+        self.eval_tau = eval_tau
+        self.eval_steps = eval_steps
+        self.grad_clip = grad_clip
         self.kpi_start = kpi_start
         self.node_names = node_names
 
@@ -99,49 +97,51 @@ class CDL:
 
         feature_dim = feature_fc_dims[-1]
 
-        self.models = nn.ModuleList([
-            StatePredictor(state_dim, action_dim, feature_dim, list(generative_fc_dims))
-            for _ in range(state_dim)
-        ]).to(self.device)
+        self.models = nn.ModuleList(
+            [
+                StatePredictor(state_dim, action_dim, feature_dim, list(generative_fc_dims))
+                for _ in range(state_dim)
+            ]
+        ).to(self.device)
 
         self.opt = optim.Adam(self.models.parameters(), lr=lr)
 
         fd = state_dim
-        self.mask_CMI         = torch.zeros(fd, fd + 1, device=self.device)
-        self._eval_cmi_acc    = torch.zeros(fd, fd + 1, device=self.device)
+        self.mask_CMI = torch.zeros(fd, fd + 1, device=self.device)
+        self._eval_cmi_acc = torch.zeros(fd, fd + 1, device=self.device)
         self._eval_step_count = 0
 
     def _nll(self, mu, std, target):
         return -Normal(mu, std).log_prob(target)
 
     def train_step(self, s_batch, a_batch):
-        s_t   = s_batch[:, 0]
+        s_t = s_batch[:, 0]
         s_tp1 = s_batch[:, 1]
-        bs    = s_t.shape[0]
-        fd    = self.state_dim
+        bs = s_t.shape[0]
+        fd = self.state_dim
 
         self.opt.zero_grad()
         total_loss = 0.0
 
         # a_batch[:, 0] is param_id — the param that was changed
         # bias: drop the changed param more often so model learns to predict without it
-        changed_param_ids = a_batch[:, 0].long()           # (bs,) which param changed
-        
+        changed_param_ids = a_batch[:, 0].long()  # (bs,) which param changed
+
         # 50% of the time drop the changed param, 50% drop random
         use_informed = torch.rand(bs, device=self.device) > 0.5
-        random_drop  = torch.randint(fd + 1, (bs,), device=self.device)
-        informed_drop = changed_param_ids                  # drop the changed param
-        
+        random_drop = torch.randint(fd + 1, (bs,), device=self.device)
+        informed_drop = changed_param_ids  # drop the changed param
+
         drop_idx = torch.where(use_informed, informed_drop, random_drop)
-        mask     = F.one_hot(drop_idx, fd + 1).bool()
+        mask = F.one_hot(drop_idx, fd + 1).bool()
 
         for j in range(fd):
-            target = s_tp1[:, j:j+1]
-            model  = self.models[j]
+            target = s_tp1[:, j : j + 1]
+            model = self.models[j]
             model.train()
 
-            mu, std     = model(s_t, a_batch)
-            full_loss   = self._nll(mu, std, target).mean()
+            mu, std = model(s_t, a_batch)
+            full_loss = self._nll(mu, std, target).mean()
 
             mu_m, std_m = model(s_t, a_batch, mask=mask)
             masked_loss = self._nll(mu_m, std_m, target).mean()
@@ -156,18 +156,18 @@ class CDL:
         return loss.item()
 
     def update_mask(self, s_batch, a_batch):
-        s_t   = s_batch[:, 0]
+        s_t = s_batch[:, 0]
         s_tp1 = s_batch[:, 1]
-        bs    = s_t.shape[0]
-        fd    = self.state_dim
+        bs = s_t.shape[0]
+        fd = self.state_dim
 
         step_cmi = torch.zeros(fd, fd + 1, device=self.device)
 
         with torch.no_grad():
             for j in range(fd):
-                target   = s_tp1[:, j:j+1]
+                target = s_tp1[:, j : j + 1]
                 self.models[j].eval()
-                mu, std  = self.models[j](s_t, a_batch)
+                mu, std = self.models[j](s_t, a_batch)
                 full_nll = self._nll(mu, std, target)
 
                 for i in range(fd + 1):
@@ -175,16 +175,16 @@ class CDL:
                     self.models[j].eval()
                     mask[:, i] = True
                     mu_m, std_m = self.models[j](s_t, a_batch, mask=mask)
-                    masked_nll  = self._nll(mu_m, std_m, target)
+                    masked_nll = self._nll(mu_m, std_m, target)
                     step_cmi[j, i] = (masked_nll - full_nll).mean()
 
-        self._eval_cmi_acc    += step_cmi
+        self._eval_cmi_acc += step_cmi
         self._eval_step_count += 1
 
         if self._eval_step_count >= self.eval_steps:
-            avg_cmi       = self._eval_cmi_acc / self.eval_steps
+            avg_cmi = self._eval_cmi_acc / self.eval_steps
             self.mask_CMI = self.eval_tau * self.mask_CMI + (1 - self.eval_tau) * avg_cmi
-            self._eval_cmi_acc    = torch.zeros(fd, fd + 1, device=self.device)
+            self._eval_cmi_acc = torch.zeros(fd, fd + 1, device=self.device)
             self._eval_step_count = 0
 
     def get_causal_graph(self):
@@ -193,7 +193,7 @@ class CDL:
     def get_binary_graph(self, threshold=None):
         if threshold is None:
             threshold = self.cmi_threshold
-        graph = (self.mask_CMI >= threshold)
+        graph = self.mask_CMI >= threshold
         fd = graph.shape[0]
         if graph.shape[1] > fd:
             graph[:fd, :fd].fill_diagonal_(0)
@@ -208,13 +208,13 @@ class CDL:
             for j in range(self.kpi_start, self.state_dim):
                 self.models[j].eval()
                 graph_mask = self.get_binary_graph()[j, :].clone()  # (fd+1,)
-                graph_mask[j]  = True   # always include self
-                graph_mask[-1] = True   # always include action
+                graph_mask[j] = True  # always include self
+                graph_mask[-1] = True  # always include action
                 mask = graph_mask.unsqueeze(0).expand(bs, -1).bool().to(self.device)
                 mu, std = self.models[j](s, a, ~mask)
                 mus.append(mu)
                 stds.append(std)
-        mu  = torch.cat(mus, dim=1)
+        mu = torch.cat(mus, dim=1)
         std = torch.cat(stds, dim=1)
         return Normal(mu, std)
 
@@ -225,29 +225,28 @@ class CDL:
         s_1: (bs, state_dim)
         returns: scalar MSE
         """
-        dist   = self.predictNextState(s, a)
-        pred   = dist.sample()                        # (bs, state_dim - kpi_start)
-        target = s_1[:, self.kpi_start:]              # (bs, state_dim - kpi_start)
-        return ((pred - target) ** 2).mean().item()   # scalar
+        dist = self.predictNextState(s, a)
+        pred = dist.sample()  # (bs, state_dim - kpi_start)
+        target = s_1[:, self.kpi_start :]  # (bs, state_dim - kpi_start)
+        return ((pred - target) ** 2).mean().item()  # scalar
 
-        
     def save_model(self, filepath="cdl_model.pt"):
         """
         Save the model state, optimizer state, and other necessary attributes.
         """
         state = {
-            'models_state_dict': [model.state_dict() for model in self.models],
-            'optimizer_state_dict': self.opt.state_dict(),
-            'mask_CMI': self.mask_CMI,
-            'eval_cmi_acc': self._eval_cmi_acc,
-            'eval_step_count': self._eval_step_count,
-            'state_dim': self.state_dim,
-            'action_dim': self.action_dim,
-            'cmi_threshold': self.cmi_threshold,
-            'eval_tau': self.eval_tau,
-            'eval_steps': self.eval_steps,
-            'grad_clip': self.grad_clip,
-            'device': self.device,
+            "models_state_dict": [model.state_dict() for model in self.models],
+            "optimizer_state_dict": self.opt.state_dict(),
+            "mask_CMI": self.mask_CMI,
+            "eval_cmi_acc": self._eval_cmi_acc,
+            "eval_step_count": self._eval_step_count,
+            "state_dim": self.state_dim,
+            "action_dim": self.action_dim,
+            "cmi_threshold": self.cmi_threshold,
+            "eval_tau": self.eval_tau,
+            "eval_steps": self.eval_steps,
+            "grad_clip": self.grad_clip,
+            "device": self.device,
         }
         torch.save(state, filepath)
 
@@ -257,12 +256,11 @@ class CDL:
         """
         state = torch.load(filepath, map_location=self.device)
         for i, model in enumerate(self.models):
-            model.load_state_dict(state['models_state_dict'][i])
-        self.opt.load_state_dict(state['optimizer_state_dict'])
-        self.mask_CMI = state['mask_CMI']
-        self._eval_cmi_acc = state['eval_cmi_acc']
-        self._eval_step_count = state['eval_step_count']
-
+            model.load_state_dict(state["models_state_dict"][i])
+        self.opt.load_state_dict(state["optimizer_state_dict"])
+        self.mask_CMI = state["mask_CMI"]
+        self._eval_cmi_acc = state["eval_cmi_acc"]
+        self._eval_step_count = state["eval_step_count"]
 
     def visualize_causal_graph(self, threshold=None):
         graph = self.get_binary_graph(threshold=threshold).cpu().numpy()
@@ -295,35 +293,79 @@ class CDL:
 
         plt.figure(figsize=(12, 6))
 
-        nx.draw_networkx_nodes(G, pos, nodelist=ncp_nodes, node_color='#AED6F1',
-                            node_size=1200, edgecolors='#2E86C1', linewidths=2)
-        nx.draw_networkx_nodes(G, pos, nodelist=kpi_nodes, node_color='#FADBD8',
-                            node_size=1200, edgecolors='#E74C3C', linewidths=2)
+        nx.draw_networkx_nodes(
+            G,
+            pos,
+            nodelist=ncp_nodes,
+            node_color="#AED6F1",
+            node_size=1200,
+            edgecolors="#2E86C1",
+            linewidths=2,
+        )
+        nx.draw_networkx_nodes(
+            G,
+            pos,
+            nodelist=kpi_nodes,
+            node_color="#FADBD8",
+            node_size=1200,
+            edgecolors="#E74C3C",
+            linewidths=2,
+        )
 
         nx.draw_networkx_labels(G, pos, labels=labels, font_size=10)
 
-        nx.draw_networkx_edges(G, pos, edgelist=ncp_to_kpi_edges, edge_color='gray',
-                            arrows=True, arrowsize=15)
-        nx.draw_networkx_edges(G, pos, edgelist=kpi_to_kpi_edges, edge_color='#A569BD',
-                            arrows=True, arrowsize=15, style='dashed',
-                            connectionstyle='arc3,rad=0.3')
-        nx.draw_networkx_edges(G, pos, edgelist=ncp_to_ncp_edges, edge_color='#2E86C1',
-                            arrows=True, arrowsize=15,
-                            connectionstyle='arc3,rad=0.3')
+        nx.draw_networkx_edges(
+            G, pos, edgelist=ncp_to_kpi_edges, edge_color="gray", arrows=True, arrowsize=15
+        )
+        nx.draw_networkx_edges(
+            G,
+            pos,
+            edgelist=kpi_to_kpi_edges,
+            edge_color="#A569BD",
+            arrows=True,
+            arrowsize=15,
+            style="dashed",
+            connectionstyle="arc3,rad=0.3",
+        )
+        nx.draw_networkx_edges(
+            G,
+            pos,
+            edgelist=ncp_to_ncp_edges,
+            edge_color="#2E86C1",
+            arrows=True,
+            arrowsize=15,
+            connectionstyle="arc3,rad=0.3",
+        )
 
         legend_elements = [
-            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#AED6F1',
-                    markeredgecolor='#2E86C1', markersize=12, label='NCP (Control)'),
-            plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#FADBD8',
-                    markeredgecolor='#E74C3C', markersize=12, label='KPI (Metric)'),
-            plt.Line2D([0], [0], color='gray', label='NCP→KPI'),
-            plt.Line2D([0], [0], color='#A569BD', linestyle='dashed', label='KPI→KPI Implicit'),
-            plt.Line2D([0], [0], color='#2E86C1', label='NCP→NCP'),
+            plt.Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor="#AED6F1",
+                markeredgecolor="#2E86C1",
+                markersize=12,
+                label="NCP (Control)",
+            ),
+            plt.Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor="#FADBD8",
+                markeredgecolor="#E74C3C",
+                markersize=12,
+                label="KPI (Metric)",
+            ),
+            plt.Line2D([0], [0], color="gray", label="NCP→KPI"),
+            plt.Line2D([0], [0], color="#A569BD", linestyle="dashed", label="KPI→KPI Implicit"),
+            plt.Line2D([0], [0], color="#2E86C1", label="NCP→NCP"),
         ]
-        plt.legend(handles=legend_elements, loc='lower center', ncol=5, frameon=True)
+        plt.legend(handles=legend_elements, loc="lower center", ncol=5, frameon=True)
 
         plt.title("Causal Graph")
-        plt.axis('off')
+        plt.axis("off")
         plt.tight_layout()
         plt.show()
 
@@ -341,10 +383,10 @@ class CDL:
         fig, axes = plt.subplots(1, 2, figsize=(18, 6))
         plt.subplots_adjust(bottom=0.3)
 
-        im = axes[0].imshow(cmi, cmap='hot', aspect='auto')
+        im = axes[0].imshow(cmi, cmap="hot", aspect="auto")
         axes[0].set_xticks(range(cmi.shape[1]))
         axes[0].set_yticks(range(fd))
-        axes[0].set_xticklabels(self.node_names + ['action'], rotation=45, ha='right', fontsize=9)
+        axes[0].set_xticklabels(self.node_names + ["action"], rotation=45, ha="right", fontsize=9)
         axes[0].set_yticklabels(self.node_names, fontsize=9)
         axes[0].set_title("CMI Heatmap (raw values)")
         axes[0].set_xlabel("Source")
@@ -352,10 +394,10 @@ class CDL:
         plt.colorbar(im, ax=axes[0])
 
         binary = (cmi >= self.cmi_threshold).astype(float)
-        im2 = axes[1].imshow(binary, cmap='Blues', aspect='auto', vmin=0, vmax=1)
+        im2 = axes[1].imshow(binary, cmap="Blues", aspect="auto", vmin=0, vmax=1)
         axes[1].set_xticks(range(cmi.shape[1]))
         axes[1].set_yticks(range(fd))
-        axes[1].set_xticklabels(self.node_names + ['action'], rotation=45, ha='right', fontsize=9)
+        axes[1].set_xticklabels(self.node_names + ["action"], rotation=45, ha="right", fontsize=9)
         axes[1].set_yticklabels(self.node_names, fontsize=9)
         title2 = axes[1].set_title(f"Binary Graph (threshold={self.cmi_threshold})")
         axes[1].set_xlabel("Source")
@@ -364,13 +406,16 @@ class CDL:
 
         ax_slider = plt.axes([0.25, 0.12, 0.5, 0.03])
         slider = widgets.Slider(
-            ax_slider, 'Threshold',
-            valmin=0.0, valmax=float(cmi.max()),
-            valinit=self.cmi_threshold, valstep=0.01
+            ax_slider,
+            "Threshold",
+            valmin=0.0,
+            valmax=float(cmi.max()),
+            valinit=self.cmi_threshold,
+            valstep=0.01,
         )
 
         ax_button = plt.axes([0.45, 0.04, 0.1, 0.04])
-        button = widgets.Button(ax_button, 'Confirm')
+        button = widgets.Button(ax_button, "Confirm")
 
         def update(val):
             t = slider.val
@@ -382,6 +427,7 @@ class CDL:
             fig.canvas.draw_idle()
 
         cmi_thres = self.cmi_threshold
+
         def confirm(event):
             nonlocal cmi_thres
             cmi_thres = slider.val

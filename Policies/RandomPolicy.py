@@ -1,12 +1,15 @@
 import numpy as np
 
+
 class RandomPolicy:
     def __init__(self, action_dim, action_space):
         self.action_space = action_space
-        self.action_dim   = action_dim
+        self.action_dim = action_dim
 
     def act(self):
         param_id = np.random.randint(0, self.action_space[0] + 1)
-        bin_id   = np.random.randint(0, self.action_space[1] + 1)
-        index    = np.random.randint(0, self.action_space[param_id+2] + 1)  # Use per-param bin-length from action_space
+        bin_id = np.random.randint(0, self.action_space[1] + 1)
+        index = np.random.randint(
+            0, self.action_space[param_id + 2] + 1
+        )  # Use per-param bin-length from action_space
         return [param_id, bin_id, index]

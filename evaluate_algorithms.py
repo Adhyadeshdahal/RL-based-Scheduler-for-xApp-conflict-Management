@@ -37,41 +37,43 @@ XAPP_COLORS = [
 ]
 
 ALGO_STYLES = [
-    dict(color="#D32F2F", marker="o",  linestyle="-",  label="QACM"),
-    dict(color="#212121", marker="D",  linestyle="-",  label="ModelBasedMCTS"),
-    dict(color="#F44336", marker="^",  linestyle="--", label="ModelBasedMPPI"),
-    dict(color="#00897B", marker="s",  linestyle="-.", label="ModelBasedCEM"),
+    dict(color="#D32F2F", marker="o", linestyle="-", label="QACM"),
+    dict(color="#212121", marker="D", linestyle="-", label="ModelBasedMCTS"),
+    dict(color="#F44336", marker="^", linestyle="--", label="ModelBasedMPPI"),
+    dict(color="#00897B", marker="s", linestyle="-.", label="ModelBasedCEM"),
 ]
-_EXTRA_COLORS  = ["#7B1FA2", "#1565C0", "#558B2F", "#E65100"]
+_EXTRA_COLORS = ["#7B1FA2", "#1565C0", "#558B2F", "#E65100"]
 _EXTRA_MARKERS = ["P", "X", "v", "<"]
 
-THRESHOLD_ALPHA    = 0.65
-GRID_COLOR         = "#E0E0E0"
-BG_COLOR           = "white"
+THRESHOLD_ALPHA = 0.65
+GRID_COLOR = "#E0E0E0"
+BG_COLOR = "white"
 JITTER_THRESHOLD_FRAC = 0.01
-JITTER_STEP_FRAC      = 0.015
+JITTER_STEP_FRAC = 0.015
 
-rcParams.update({
-    "font.family":        "DejaVu Sans",
-    "axes.facecolor":     BG_COLOR,
-    "figure.facecolor":   BG_COLOR,
-    "axes.edgecolor":     "#BDBDBD",
-    "axes.grid":          True,
-    "grid.color":         GRID_COLOR,
-    "grid.linewidth":     0.6,
-    "grid.alpha":         1.0,
-    "axes.spines.top":    False,
-    "axes.spines.right":  False,
-    "xtick.color":        "#424242",
-    "ytick.color":        "#424242",
-    "xtick.labelsize":    9,
-    "ytick.labelsize":    9,
-    "axes.labelsize":     10,
-    "axes.labelcolor":    "#212121",
-    "axes.titlesize":     10,
-    "axes.titleweight":   "bold",
-    "axes.titlecolor":    "#212121",
-})
+rcParams.update(
+    {
+        "font.family": "DejaVu Sans",
+        "axes.facecolor": BG_COLOR,
+        "figure.facecolor": BG_COLOR,
+        "axes.edgecolor": "#BDBDBD",
+        "axes.grid": True,
+        "grid.color": GRID_COLOR,
+        "grid.linewidth": 0.6,
+        "grid.alpha": 1.0,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "xtick.color": "#424242",
+        "ytick.color": "#424242",
+        "xtick.labelsize": 9,
+        "ytick.labelsize": 9,
+        "axes.labelsize": 10,
+        "axes.labelcolor": "#212121",
+        "axes.titlesize": 10,
+        "axes.titleweight": "bold",
+        "axes.titlecolor": "#212121",
+    }
+)
 
 
 def state_to_tensor(state_dict):
@@ -88,7 +90,7 @@ def denormalize_params(norm_params, env):
     raw = np.empty_like(norm_params)
     for i, p in enumerate(env.params):
         lo, hi = p.get_threshold()
-        raw[i]  = norm_params[i] * (hi - lo) + lo
+        raw[i] = norm_params[i] * (hi - lo) + lo
     return raw
 
 
@@ -97,18 +99,18 @@ def algo_style(idx, algo_names):
         return ALGO_STYLES[idx]
     extra = idx - len(ALGO_STYLES)
     return dict(
-        color     = _EXTRA_COLORS[extra % len(_EXTRA_COLORS)],
-        marker    = _EXTRA_MARKERS[extra % len(_EXTRA_MARKERS)],
-        linestyle = "-",
-        label     = algo_names[idx] if idx < len(algo_names) else f"Algo {idx}",
+        color=_EXTRA_COLORS[extra % len(_EXTRA_COLORS)],
+        marker=_EXTRA_MARKERS[extra % len(_EXTRA_MARKERS)],
+        linestyle="-",
+        label=algo_names[idx] if idx < len(algo_names) else f"Algo {idx}",
     )
 
 
-def jitter_values(raw_vals, sweep_range,
-                  threshold_frac=JITTER_THRESHOLD_FRAC,
-                  step_frac=JITTER_STEP_FRAC):
+def jitter_values(
+    raw_vals, sweep_range, threshold_frac=JITTER_THRESHOLD_FRAC, step_frac=JITTER_STEP_FRAC
+):
     min_gap = threshold_frac * sweep_range
-    step    = step_frac      * sweep_range
+    step = step_frac * sweep_range
     display = list(raw_vals)
     indexed = sorted(enumerate(raw_vals), key=lambda t: t[1])
     i = 0
@@ -118,7 +120,7 @@ def jitter_values(raw_vals, sweep_range,
             j += 1
         group = indexed[i:j]
         if len(group) > 1:
-            centre  = np.mean([v for _, v in group])
+            centre = np.mean([v for _, v in group])
             offsets = np.arange(len(group)) * step
             offsets -= offsets.mean()
             for k, (orig_idx, _) in enumerate(group):
@@ -128,11 +130,11 @@ def jitter_values(raw_vals, sweep_range,
 
 
 def detect_conflict_edges(causal_graph, env):
-    num_params  = env.num_params
-    state_dim   = causal_graph.shape[0]
-    param2xapp  = {}
-    xapp2id     = {xa: i for i, xa in enumerate(env.xapps)}
-    param2id    = {p: i for i, p in enumerate(env.params)}
+    num_params = env.num_params
+    state_dim = causal_graph.shape[0]
+    param2xapp = {}
+    xapp2id = {xa: i for i, xa in enumerate(env.xapps)}
+    param2id = {p: i for i, p in enumerate(env.params)}
 
     for xapp in env.xapps:
         for p in xapp.params:
@@ -140,7 +142,7 @@ def detect_conflict_edges(causal_graph, env):
             param2xapp.setdefault(pid, []).append(xapp)
 
     kpi2xapp_mapping = env.get_kpi_to_xapp_mapping()
-    
+
     edges = []
     for kpi_node in range(num_params, state_dim):
         primary_xapp_id = kpi2xapp_mapping.get(kpi_node)
@@ -155,12 +157,14 @@ def detect_conflict_edges(causal_graph, env):
             conflict_xapp_ids = sorted(
                 {xapp2id[xa] for xa in xapps_in_conflict} | {primary_xapp_id}
             )
-            edges.append(dict(
-                primary_xapp_id   = primary_xapp_id,
-                param_id          = param_id,
-                xapps_in_conflict = xapps_in_conflict,
-                conflict_xapp_ids = conflict_xapp_ids,
-            ))
+            edges.append(
+                dict(
+                    primary_xapp_id=primary_xapp_id,
+                    param_id=param_id,
+                    xapps_in_conflict=xapps_in_conflict,
+                    conflict_xapp_ids=conflict_xapp_ids,
+                )
+            )
     return edges
 
 
@@ -170,60 +174,87 @@ def compute_utility(utility_fn, raw_params, param_id, action_val):
     return float(utility_fn(p))
 
 
-def draw_panel(ax, sweep, curves, algo_actions, algo_names,
-               param_id, primary_xapp_id, thresh,
-               KPI_THRESHOLDS, MEAN_STD_KPIS):
+def draw_panel(
+    ax,
+    sweep,
+    curves,
+    algo_actions,
+    algo_names,
+    param_id,
+    primary_xapp_id,
+    thresh,
+    KPI_THRESHOLDS,
+    MEAN_STD_KPIS,
+):
     sweep_range = thresh[1] - thresh[0]
 
     for xapp_id, values in curves:
         color = XAPP_COLORS[xapp_id % len(XAPP_COLORS)]
-        lw    = 2.2 if xapp_id == primary_xapp_id else 1.5
+        lw = 2.2 if xapp_id == primary_xapp_id else 1.5
         ax.plot(sweep, values, color=color, linewidth=lw, zorder=3)
 
     for xapp_id, _ in curves:
         if xapp_id >= len(KPI_THRESHOLDS):
             continue
         raw_thresh = KPI_THRESHOLDS[xapp_id]
-        mean, std  = MEAN_STD_KPIS[xapp_id]
-        q_i        = (raw_thresh - mean) / std
-        color      = XAPP_COLORS[xapp_id % len(XAPP_COLORS)]
-        ax.axhline(q_i, color=color, linewidth=1.2, linestyle="--",
-                   alpha=THRESHOLD_ALPHA, zorder=2)
+        mean, std = MEAN_STD_KPIS[xapp_id]
+        q_i = (raw_thresh - mean) / std
+        color = XAPP_COLORS[xapp_id % len(XAPP_COLORS)]
+        ax.axhline(q_i, color=color, linewidth=1.2, linestyle="--", alpha=THRESHOLD_ALPHA, zorder=2)
 
     primary_vals = next(v for xid, v in curves if xid == primary_xapp_id)
-    peak_idx     = int(np.argmax(primary_vals))
-    eta_val      = float(primary_vals[peak_idx])
-    ax.axhline(eta_val, color="#9E9E9E", linewidth=1.0,
-               linestyle="--", alpha=0.8, zorder=2)
-    ax.scatter([sweep[peak_idx]], [eta_val],
-               color="#F44336", s=55, zorder=6, linewidths=0)
+    peak_idx = int(np.argmax(primary_vals))
+    eta_val = float(primary_vals[peak_idx])
+    ax.axhline(eta_val, color="#9E9E9E", linewidth=1.0, linestyle="--", alpha=0.8, zorder=2)
+    ax.scatter([sweep[peak_idx]], [eta_val], color="#F44336", s=55, zorder=6, linewidths=0)
 
     clamped = [float(np.clip(v, thresh[0], thresh[1])) for v in algo_actions]
     display = jitter_values(clamped, sweep_range)
 
     for idx, (disp_val, raw_val) in enumerate(zip(display, algo_actions)):
         style = algo_style(idx, algo_names)
-        y_at  = float(np.interp(disp_val, sweep, primary_vals))
-        ax.axvline(disp_val, color=style["color"], linewidth=1.6,
-                   linestyle=style["linestyle"], alpha=0.92, zorder=5)
+        y_at = float(np.interp(disp_val, sweep, primary_vals))
+        ax.axvline(
+            disp_val,
+            color=style["color"],
+            linewidth=1.6,
+            linestyle=style["linestyle"],
+            alpha=0.92,
+            zorder=5,
+        )
         if style["marker"]:
-            ax.scatter([disp_val], [y_at],
-                       color=style["color"], marker=style["marker"],
-                       s=55, zorder=7, linewidths=0)
-        ax.text(disp_val, ax.get_ylim()[0] if ax.get_ylim()[0] != 0 else
-                ax.dataLim.y0,
-                f" {raw_val:.1f}", color=style["color"],
-                fontsize=7, va="bottom", ha="center", zorder=8,
-                rotation=90, clip_on=True)
+            ax.scatter(
+                [disp_val],
+                [y_at],
+                color=style["color"],
+                marker=style["marker"],
+                s=55,
+                zorder=7,
+                linewidths=0,
+            )
+        ax.text(
+            disp_val,
+            ax.get_ylim()[0] if ax.get_ylim()[0] != 0 else ax.dataLim.y0,
+            f" {raw_val:.1f}",
+            color=style["color"],
+            fontsize=7,
+            va="bottom",
+            ha="center",
+            zorder=8,
+            rotation=90,
+            clip_on=True,
+        )
 
     ax.set_xlim(thresh[0], thresh[1])
     ax.set_xlabel(f"Values for $p_{{{param_id}}}$", labelpad=4)
     ax.set_ylabel(f"Values for $U(p_{{{param_id}}})$", labelpad=4)
-    others     = [xid for xid, _ in curves if xid != primary_xapp_id]
+    others = [xid for xid, _ in curves if xid != primary_xapp_id]
     others_str = ", ".join(f"$x_{{{i}}}$" for i in others)
-    title      = (f"$x_{{{primary_xapp_id}}}$ conflict with {others_str} "
-                  f"over $p_{{{param_id}}}$") if others else \
-                 f"$x_{{{primary_xapp_id}}}$ over $p_{{{param_id}}}$"
+    title = (
+        (f"$x_{{{primary_xapp_id}}}$ conflict with {others_str} over $p_{{{param_id}}}$")
+        if others
+        else f"$x_{{{primary_xapp_id}}}$ over $p_{{{param_id}}}$"
+    )
     ax.set_title(title, pad=7)
 
 
@@ -231,22 +262,22 @@ def main():
     np.random.seed(SEED)
     torch.manual_seed(SEED)
 
-    env       = get_env()
+    env = get_env()
     state_dim = env.get_state_dim()
-    act_dim   = env.get_action_dim()
-    model     = get_model(env)
+    act_dim = env.get_action_dim()
+    model = get_model(env)
 
     cdl = CDL(
-        state_dim          = state_dim,
-        action_dim         = act_dim,
-        device             = DEVICE,
-        cmi_threshold      = CMI_THRESHOLD,
-        eval_tau           = EVAL_TAU,
-        grad_clip          = GRAD_CLIP,
-        generative_fc_dims = GENERATIVE_FC_DIMS,
-        feature_fc_dims    = FEATURE_FC_DIMS,
-        lr                 = 1e-3,
-        kpi_start          = env.num_params,
+        state_dim=state_dim,
+        action_dim=act_dim,
+        device=DEVICE,
+        cmi_threshold=CMI_THRESHOLD,
+        eval_tau=EVAL_TAU,
+        grad_clip=GRAD_CLIP,
+        generative_fc_dims=GENERATIVE_FC_DIMS,
+        feature_fc_dims=FEATURE_FC_DIMS,
+        lr=1e-3,
+        kpi_start=env.num_params,
     )
     try:
         cdl.load_model(CDL_LOAD_NAME)
@@ -260,16 +291,16 @@ def main():
         print("[ERROR] Inference model not found:", MODEL_LOAD_NAME)
         return -1
 
-    algorithms  = get_algorithms(model, env)
-    algo_names  = [a.name for a in algorithms]
+    algorithms = get_algorithms(model, env)
+    algo_names = [a.name for a in algorithms]
     utility_fns = env.get_utility_fns()
 
     KPI_THRESHOLDS, MEAN_STD_KPIS = env.get_thresholds_stds()
 
     tag_suffix = "CMI" if USE_CMI else "MLP"
-    timestamp  = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir    = f"runs/{ENVIRONMENT}/evaluate_{tag_suffix}_{timestamp}"
-    writer     = SummaryWriter(log_dir=run_dir)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = f"runs/{ENVIRONMENT}/evaluate_{tag_suffix}_{timestamp}"
+    writer = SummaryWriter(log_dir=run_dir)
 
     print(f"TensorBoard logging to:  {run_dir}")
     print(f"Running evaluation for {NUM_STEPS} environment steps ...\n")
@@ -277,15 +308,12 @@ def main():
     env.reset()
 
     for global_step in range(NUM_STEPS):
-
         state_dict = env._get_state()
-        state_t    = state_to_tensor(state_dict).to(DEVICE)
-        raw_params = denormalize_params(
-            state_t[:env.num_params].cpu().numpy(), env
-        )
+        state_t = state_to_tensor(state_dict).to(DEVICE)
+        raw_params = denormalize_params(state_t[: env.num_params].cpu().numpy(), env)
 
         causal_graph = cdl.get_binary_graph()[:, :-1].cpu().detach().numpy()
-        edges        = detect_conflict_edges(causal_graph, env)
+        edges = detect_conflict_edges(causal_graph, env)
 
         num_conflicts = len(edges)
         writer.add_scalar("conflicts/count", num_conflicts, global_step)
@@ -298,16 +326,16 @@ def main():
         step_utilities = {algo.name: [] for algo in algorithms}
 
         for edge in edges:
-            param_id          = edge["param_id"]
-            primary_xapp_id   = edge["primary_xapp_id"]
+            param_id = edge["param_id"]
+            primary_xapp_id = edge["primary_xapp_id"]
             xapps_in_conflict = edge["xapps_in_conflict"]
             conflict_xapp_ids = edge["conflict_xapp_ids"]
 
-            param  = env.params[param_id]
+            param = env.params[param_id]
             thresh = param.get_threshold()
 
             num_xapps = len(xapps_in_conflict)
-            weights   = np.ones(num_xapps)
+            weights = np.ones(num_xapps)
             for idx, xapp in enumerate(xapps_in_conflict):
                 if xapp == env.xapps[primary_xapp_id]:
                     weights[idx] *= 1.0
@@ -316,29 +344,30 @@ def main():
             for algo_idx, algo in enumerate(algorithms):
                 state_for_algo = state_t.clone().detach()
 
-                action  = algo.act(
-                    current_state        = state_for_algo,
-                    conflict_param_index = param_id,
-                    xapps_under_conflict = xapps_in_conflict,
-                    weights_per_xapps    = weights.tolist(),
-                    scaling_term         = 10,
+                action = algo.act(
+                    current_state=state_for_algo,
+                    conflict_param_index=param_id,
+                    xapps_under_conflict=xapps_in_conflict,
+                    weights_per_xapps=weights.tolist(),
+                    scaling_term=10,
                 )
                 raw_val = env.action_to_param(action)[1]
 
                 for xid in conflict_xapp_ids:
                     if xid >= len(utility_fns):
                         continue
-                    u = compute_utility(utility_fns[xid], raw_params,
-                                        param_id, raw_val)
+                    u = compute_utility(utility_fns[xid], raw_params, param_id, raw_val)
                     step_utilities[algo.name].append(u)
 
-                print(f"    [{algo.name:22s}]  "
-                      f"x{primary_xapp_id}→p{param_id}  "
-                      f"action={raw_val:.4f}  "
-                      f"utility(primary)="
-                      f"{compute_utility(utility_fns[primary_xapp_id], raw_params, param_id, raw_val):.4f}"
-                      if primary_xapp_id < len(utility_fns) else
-                      f"    [{algo.name:22s}]  x{primary_xapp_id}→p{param_id}  action={raw_val:.4f}")
+                print(
+                    f"    [{algo.name:22s}]  "
+                    f"x{primary_xapp_id}→p{param_id}  "
+                    f"action={raw_val:.4f}  "
+                    f"utility(primary)="
+                    f"{compute_utility(utility_fns[primary_xapp_id], raw_params, param_id, raw_val):.4f}"
+                    if primary_xapp_id < len(utility_fns)
+                    else f"    [{algo.name:22s}]  x{primary_xapp_id}→p{param_id}  action={raw_val:.4f}"
+                )
 
         scalars_for_step = {}
         for algo in algorithms:

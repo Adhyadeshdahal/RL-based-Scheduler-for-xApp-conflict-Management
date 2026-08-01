@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-from Environment import get_env,ORANEnvironment,ORANEnvironment2
+from Environment import get_env, ORANEnvironment, ORANEnvironment2
 from Policies.model_based import ModelBasedPolicy
 import random
 from Policies.RandomPolicy import RandomPolicy
@@ -13,6 +13,7 @@ from Models import get_model
 np.random.seed(SEED)
 torch.manual_seed(SEED)
 IS_TRAIN = True
+
 
 def state_to_tensor(state_dict):
     kpi, param = [], []
@@ -37,11 +38,10 @@ def oran_reward(pred_kpis, actions):
 
 
 class ReplayBufferDataset(Dataset):
-
     def __init__(self, state_dim, action_dim):
-        self.state_dim  = state_dim
+        self.state_dim = state_dim
         self.action_dim = action_dim
-        self.data       = []
+        self.data = []
 
     def __len__(self):
         return len(self.data)
@@ -63,22 +63,19 @@ def main():
     env = get_env()
 
     ground_truth_causal_graph = env.true_adj_matrix
-    global USE_CMI,USE_MLP,RESULT_DIR
-    if isinstance(env,ORANEnvironment2):
+    global USE_CMI, USE_MLP, RESULT_DIR
+    if isinstance(env, ORANEnvironment2):
         RESULT_DIR += "QACM"
-    elif isinstance(env,ORANEnvironment):
+    elif isinstance(env, ORANEnvironment):
         RESULT_DIR += "EnvironmentII"
 
     writer = SummaryWriter(os.path.join(RESULT_DIR, "tensorboard"))
 
-    state_dim  = env.get_state_dim()
+    state_dim = env.get_state_dim()
     action_dim = env.action_dim
 
-    random_policy = RandomPolicy(
-        action_dim=env.action_dim,
-        action_space=env.action_space
-    )
-    mb_policy = None   
+    random_policy = RandomPolicy(action_dim=env.action_dim, action_space=env.action_space)
+    mb_policy = None
 
     model = get_model(env)
 
@@ -96,34 +93,34 @@ def main():
             print(f"[main] No checkpoint at {MODEL_LOAD_NAME}; training from scratch.")
 
     train_buffer = ReplayBufferDataset(state_dim, action_dim)
-    test_buffer = ReplayBufferDataset(state_dim,action_dim)
-    obs    = env.reset()
-    loss   = 0.0
+    test_buffer = ReplayBufferDataset(state_dim, action_dim)
+    obs = env.reset()
+    loss = 0.0
     episode_reward = 0
     episode_rewards = []
     for step in range(TOTAL_STEPS):
-
         if mb_policy is not None:
             s_tensor = state_to_tensor(obs).to(DEVICE)
-            action   = mb_policy.act(s_tensor)
+            action = mb_policy.act(s_tensor)
         else:
             action = random_policy.act()
 
         next_obs, reward, done, info = env.step(action)
 
-        s_tensor      = state_to_tensor(obs)
+        s_tensor = state_to_tensor(obs)
         s_next_tensor = state_to_tensor(next_obs)
-        train_buffer.add(s_tensor, action, s_next_tensor) if random.random()>0.2 else test_buffer.add(s_tensor,action,s_next_tensor)
-        episode_reward+=reward
+        train_buffer.add(
+            s_tensor, action, s_next_tensor
+        ) if random.random() > 0.2 else test_buffer.add(s_tensor, action, s_next_tensor)
+        episode_reward += reward
 
         obs = next_obs
         if done:
             obs = env.reset()
             episode_rewards.append(episode_reward)
-            print(f"Episode {len(episode_rewards)} Reward : ",episode_rewards[-1])
+            print(f"Episode {len(episode_rewards)} Reward : ", episode_rewards[-1])
 
-            episode_reward=0
-
+            episode_reward = 0
 
         if (step < INIT_STEPS) and IS_TRAIN:
             continue
@@ -131,23 +128,21 @@ def main():
         if IS_TRAIN:
             for _ in range(INFERENCE_GRADIENT_STEPS):
                 s, a, s_next = train_buffer.sample(BATCH_SIZE)
-                s      = s.float().to(DEVICE)
+                s = s.float().to(DEVICE)
                 s_next = s_next.float().to(DEVICE)
-                a      = a.float().reshape(-1, action_dim).to(DEVICE)
+                a = a.float().reshape(-1, action_dim).to(DEVICE)
                 s_pair = torch.stack([s, s_next], dim=1).to(DEVICE)
-                loss   = model.train_step(s_pair, a)
+                loss = model.train_step(s_pair, a)
 
             if USE_CMI:
                 # ---- UPDATE CAUSAL GRAPH ----
                 if step % (EVAL_STEPS * INFERENCE_GRADIENT_STEPS) == 0:
                     s, a, s_next = train_buffer.sample(BATCH_SIZE)
-                    s      = s.float().to(DEVICE)
+                    s = s.float().to(DEVICE)
                     s_next = s_next.float().to(DEVICE)
-                    a      = a.float().reshape(-1, action_dim).to(DEVICE)
+                    a = a.float().reshape(-1, action_dim).to(DEVICE)
                     s_pair = torch.stack([s, s_next], dim=1).to(DEVICE)
                     model.update_mask(s_pair, a)
-            
-
 
         if step == MODEL_BASED_START:
             print(f"\nStep {step}: CDL trained — switching to model-based policy")
@@ -161,18 +156,21 @@ def main():
                 n_iter=N_ITER,
             )
 
-        if (step % PLOT_FREQ == 0):
-
+        if step % PLOT_FREQ == 0:
             if USE_CMI:
-                if len(test_buffer)>=TEST_BATCH_SIZE:
-                    s_b,a_b,s_1b = test_buffer.sample(TEST_BATCH_SIZE)
-                    s_b,a_b,s_1b = s_b.float().to(DEVICE),a_b.float().reshape(-1,action_dim).to(DEVICE),s_1b.float().to(DEVICE)
-                    mse = model.evaluatePredictions(s_b,a_b,s_1b)
-                    print("Next Step Prediction MSE: ",mse)
-                    writer.add_scalar("Predictions/MSE",mse,step)
+                if len(test_buffer) >= TEST_BATCH_SIZE:
+                    s_b, a_b, s_1b = test_buffer.sample(TEST_BATCH_SIZE)
+                    s_b, a_b, s_1b = (
+                        s_b.float().to(DEVICE),
+                        a_b.float().reshape(-1, action_dim).to(DEVICE),
+                        s_1b.float().to(DEVICE),
+                    )
+                    mse = model.evaluatePredictions(s_b, a_b, s_1b)
+                    print("Next Step Prediction MSE: ", mse)
+                    writer.add_scalar("Predictions/MSE", mse, step)
 
                 pred = model.get_binary_graph()[:, :-1].cpu().detach().numpy()
-                gt   = ground_truth_causal_graph
+                gt = ground_truth_causal_graph
 
                 tp = np.sum((pred == 1) & (gt == 1))
                 fp = np.sum((pred == 1) & (gt == 0))
@@ -180,9 +178,9 @@ def main():
                 tn = np.sum((pred == 0) & (gt == 0))
 
                 precision = tp / (tp + fp + 1e-8)
-                recall    = tp / (tp + fn + 1e-8)
-                f1        = 2 * precision * recall / (precision + recall + 1e-8)
-                accuracy  = (tp + tn) / (tp + tn + fp + fn)
+                recall = tp / (tp + fn + 1e-8)
+                f1 = 2 * precision * recall / (precision + recall + 1e-8)
+                accuracy = (tp + tn) / (tp + tn + fp + fn)
 
                 mode = "model-based" if mb_policy is not None else "random"
 
@@ -198,20 +196,25 @@ def main():
                 print("Accuracy:", accuracy)
                 print("N:", pred.sum())
 
-            elif USE_MLP and len(test_buffer)>TEST_BATCH_SIZE:
-                s_b,a_b,s_1b = test_buffer.sample(TEST_BATCH_SIZE)
-                s_b,a_b,s_1b = s_b.float().to(DEVICE),a_b.float().reshape(-1,action_dim).to(DEVICE),s_1b.float().to(DEVICE)
-                mse = model.evaluatePredictions(s_b,a_b,s_1b)
-                print("Next Step Prediction MSE: ",mse)
-                writer.add_scalar("Predictions/MSE",mse,step)
+            elif USE_MLP and len(test_buffer) > TEST_BATCH_SIZE:
+                s_b, a_b, s_1b = test_buffer.sample(TEST_BATCH_SIZE)
+                s_b, a_b, s_1b = (
+                    s_b.float().to(DEVICE),
+                    a_b.float().reshape(-1, action_dim).to(DEVICE),
+                    s_1b.float().to(DEVICE),
+                )
+                mse = model.evaluatePredictions(s_b, a_b, s_1b)
+                print("Next Step Prediction MSE: ", mse)
+                writer.add_scalar("Predictions/MSE", mse, step)
 
-    
     for episode, reward in enumerate(episode_rewards):
         writer.add_scalar("policy_stat/episode_reward", reward, episode)
 
     writer.close()
 
     if IS_TRAIN:
-        model.save_model(filepath = MODEL_SAVE_NAME)
+        model.save_model(filepath=MODEL_SAVE_NAME)
+
+
 if __name__ == "__main__":
     main()
