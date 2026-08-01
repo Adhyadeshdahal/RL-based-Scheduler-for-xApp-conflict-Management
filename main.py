@@ -82,8 +82,18 @@ def main():
 
     model = get_model(env)
 
+    # NOTE: the IS_TRAIN / IS_TEST flags are incoherent here -- `IS_TRAIN` is shadowed
+    # at module level (line 15) while `IS_TEST` is still derived from the Parameters
+    # value, so this branch is taken even on a fresh training run. Resuming from a
+    # checkpoint when one exists is the intended behaviour; a missing checkpoint now
+    # starts from scratch instead of crashing. The flags themselves are fixed in
+    # Phase 1.2 of REFACTOR_PLAN.md.
     if not IS_TRAIN or IS_TEST:
-        model.load_model(MODEL_LOAD_NAME)
+        if os.path.exists(MODEL_LOAD_NAME):
+            model.load_model(MODEL_LOAD_NAME)
+            print(f"[main] Resumed from checkpoint: {MODEL_LOAD_NAME}")
+        else:
+            print(f"[main] No checkpoint at {MODEL_LOAD_NAME}; training from scratch.")
 
     train_buffer = ReplayBufferDataset(state_dim, action_dim)
     test_buffer = ReplayBufferDataset(state_dim,action_dim)

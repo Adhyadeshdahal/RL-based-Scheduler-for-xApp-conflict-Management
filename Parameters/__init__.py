@@ -54,7 +54,8 @@ elif USE_CMI:
 RESULT_DIR += f"{RUN_NAME}/"
 
 
-MODEL_LOAD_NAME = MODEL_SAVE_NAME = f"{"CMI" if USE_CMI else "MLP"}-{ENVIRONMENT}_model.pt" 
+MODEL_KIND = "CMI" if USE_CMI else "MLP"
+MODEL_LOAD_NAME = MODEL_SAVE_NAME = f"{MODEL_KIND}-{ENVIRONMENT}_model.pt"
 CDL_LOAD_NAME = f"CMI-{ENVIRONMENT}_model.pt" 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

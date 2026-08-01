@@ -1,5 +1,5 @@
 import numpy as np
-import gym
+import gymnasium as gym
 from typing import List, Callable, Tuple
 from math import exp
 from Parameters import ENVIRONMENT_II_MEAN_STDS,ENVIRONMENT_II_PARAM_RANGES

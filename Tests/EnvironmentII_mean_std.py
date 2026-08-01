@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     for idx, ranges in enumerate(PARAM_RANGES):
         t0 = time.perf_counter()
-        mean_std = get_mean_std(ranges)
+        mean_std = get_mean_std(ranges, seed=0)
         print(f"\n# PARAM_RANGES[{idx}] ({'Train' if idx == 0 else 'Test'}):")
         print("MEAN_STD_KPIS = [")
         for name, (mean, std) in zip(KPI_NAMES, mean_std):
