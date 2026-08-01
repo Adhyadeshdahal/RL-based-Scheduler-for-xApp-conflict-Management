@@ -10,12 +10,8 @@ wheels/
 .venv
 venv
 .cache/
-
-inference_cmi.py
-./inference_cmi.py
-groundTruth.py
-
-rslts/*
+results/
+sweeps/
 *.pt
 *.pdf
 
@@ -26,5 +22,3 @@ rslts/*
 !conflict_resolution_techniques.png
 
 runs/*
-sweeps/
-results/

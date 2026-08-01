@@ -1,6 +1,6 @@
+from config import ExperimentConfig
 from Models.CDL import CDL
 from Models.MLP import MLPInference
-from config import ExperimentConfig
 
 
 def nodeNames(env):

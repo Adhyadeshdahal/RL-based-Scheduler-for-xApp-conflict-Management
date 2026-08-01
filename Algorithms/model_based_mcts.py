@@ -1,6 +1,8 @@
+import math
+
 import numpy as np
 import torch
-import math
+
 from Algorithms.base import Planner
 from Algorithms.cost import weighted_distance
 

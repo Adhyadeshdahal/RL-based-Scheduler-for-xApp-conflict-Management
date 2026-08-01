@@ -1,6 +1,7 @@
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import torch
 import yaml
@@ -69,7 +70,7 @@ class ExperimentConfig:
     planner: PlannerConfig
 
 
-def load_config(path, overrides=()) -> ExperimentConfig:
+def load_config(path: str | Path, overrides: Iterable[str] = ()) -> ExperimentConfig:
     path = Path(path)
     if not path.is_absolute() and not path.exists():
         path = Path(__file__).parent / "configs" / path
@@ -123,5 +124,5 @@ def load_config(path, overrides=()) -> ExperimentConfig:
 DEFAULT_CONFIG = load_config("env_i_mlp.yaml")
 
 
-def config_dict(cfg: ExperimentConfig):
+def config_dict(cfg: ExperimentConfig) -> dict[str, Any]:
     return asdict(cfg)

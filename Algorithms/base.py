@@ -1,4 +1,7 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
+
+import torch
 
 
 class Planner(ABC):
@@ -7,9 +10,9 @@ class Planner(ABC):
     @abstractmethod
     def act(
         self,
-        current_state,
-        conflict_param_index,
-        xapps_under_conflict,
-        weights_per_xapps,
-        scaling_term,
+        current_state: torch.Tensor,
+        conflict_param_index: int,
+        xapps_under_conflict: Sequence[object],
+        weights_per_xapps: list[float],
+        scaling_term: float,
     ) -> list[int]: ...

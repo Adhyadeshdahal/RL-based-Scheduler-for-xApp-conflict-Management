@@ -1,15 +1,17 @@
 import hashlib
 import json
 import subprocess
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 
-from config import config_dict
+from config import ExperimentConfig, config_dict
 
 
-def create_run_dir(cfg, root="runs"):
+def create_run_dir(cfg: ExperimentConfig, root: str | Path = "runs") -> Path:
     resolved = config_dict(cfg)
     encoded = yaml.safe_dump(resolved, sort_keys=True).encode()
     run_id = f"{datetime.now():%Y%m%d-%H%M%S}-{hashlib.sha256(encoded).hexdigest()[:8]}"
@@ -19,7 +21,7 @@ def create_run_dir(cfg, root="runs"):
     return run_dir
 
 
-def write_metadata(run_dir, cfg):
+def write_metadata(run_dir: str | Path, cfg: ExperimentConfig) -> None:
     run_dir = Path(run_dir)
     with (run_dir / "config.yaml").open("w") as config_file:
         yaml.safe_dump(config_dict(cfg), config_file, sort_keys=False)
@@ -29,16 +31,16 @@ def write_metadata(run_dir, cfg):
     (run_dir / "git_sha.txt").write_text(f"{sha}\ndirty={dirty}\n")
 
 
-def write_metrics(run_dir, metrics):
+def write_metrics(run_dir: str | Path, metrics: Mapping[str, Any]) -> None:
     with (Path(run_dir) / "metrics.json").open("w") as metrics_file:
         json.dump(metrics, metrics_file, indent=2, sort_keys=True)
 
 
-def read_metrics(run_dir):
+def read_metrics(run_dir: str | Path) -> dict[str, Any]:
     path = Path(run_dir) / "metrics.json"
     return json.loads(path.read_text()) if path.exists() else {}
 
 
-def _git(*args):
+def _git(*args: str) -> str:
     result = subprocess.run(["git", *args], capture_output=True, text=True, check=False)
     return result.stdout.strip() if result.returncode == 0 else "unknown"

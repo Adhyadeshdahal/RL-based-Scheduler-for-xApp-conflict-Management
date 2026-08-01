@@ -1,7 +1,8 @@
-import numpy as np
 import time
-from env_statistics.cache import get_cached_mean_std
 
+import numpy as np
+
+from env_statistics.cache import get_cached_mean_std
 
 NUM_SAMPLES = 1_000_000
 CHUNK = 100_000
@@ -81,7 +82,7 @@ if __name__ == "__main__":
     t0 = time.perf_counter()
     mean_std = get_mean_std(PARAM_RANGES, seed=SEED)
     print("MEAN_STD_KPIS = [")
-    for name, (mean, std) in zip(KPI_NAMES, mean_std):
+    for name, (mean, std) in zip(KPI_NAMES, mean_std, strict=True):
         print(f"    ({mean:.6f}, {std:.6f}),  # {name}")
     print("]")
     print(f"# Time: {time.perf_counter() - t0:.2f}s")

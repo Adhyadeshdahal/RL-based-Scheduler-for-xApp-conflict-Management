@@ -1,12 +1,19 @@
 import hashlib
 import json
+from collections.abc import Callable
 from pathlib import Path
-
+from typing import Any
 
 _CACHE_DIR = Path(__file__).resolve().parent.parent / ".cache" / "stats"
 
 
-def get_cached_mean_std(environment, param_ranges, seed, num_samples, compute):
+def get_cached_mean_std(
+    environment: str,
+    param_ranges: Any,
+    seed: int,
+    num_samples: int,
+    compute: Callable[[], list[tuple[float, float]]],
+) -> list[tuple[float, float]]:
     key_data = {
         "environment": environment,
         "param_ranges": param_ranges,

@@ -48,8 +48,8 @@ def seed_all(seed: int) -> None:
 
 
 def build_env(env_name: str):
-    from Environment import get_env
     from config import DEFAULT_CONFIG
+    from Environment import get_env
 
     # Seed before construction: Param.__init__ draws from np.random.
     seed_all(BASE_SEED)

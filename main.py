@@ -1,15 +1,16 @@
 import logging
 import random
+from typing import Any
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torch.utils.tensorboard import SummaryWriter
 
+from config import DEFAULT_CONFIG, ExperimentConfig
 from Environment import get_env
 from Models import get_model
 from Policies.RandomPolicy import RandomPolicy
-from config import DEFAULT_CONFIG, ExperimentConfig
 from utils.runs import create_run_dir, write_metrics
 from utils.seeding import seed_everything
 
@@ -44,7 +45,7 @@ class ReplayBufferDataset(Dataset):
 
     def sample(self, batch_size):
         idx = np.random.randint(0, len(self.data), size=batch_size)
-        s, a, s_next = zip(*(self.data[i] for i in idx))
+        s, a, s_next = zip(*(self.data[i] for i in idx), strict=True)
         return torch.stack(s), torch.tensor(a), torch.stack(s_next)
 
 
@@ -75,7 +76,7 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False, run_dir=None):
     loss = 0.0
     episode_reward = 0
     episode_rewards = []
-    metrics = {"prediction_mse": None}
+    metrics: dict[str, Any] = {"prediction_mse": None}
     for step in range(cfg.train.total_steps):
         action = random_policy.act()
 

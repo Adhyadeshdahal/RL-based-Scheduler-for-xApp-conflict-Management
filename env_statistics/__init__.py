@@ -1,2 +1,4 @@
-from env_statistics.EnvironmentII_mean_std import get_mean_std as get_envII_mean_std
 from env_statistics.EnvironmentI_mean_std import get_mean_std as get_envI_mean_std
+from env_statistics.EnvironmentII_mean_std import get_mean_std as get_envII_mean_std
+
+__all__ = ["get_envI_mean_std", "get_envII_mean_std"]

@@ -20,8 +20,9 @@ In an Open RAN ecosystem, multiple xApps can concurrently subscribe to and manip
   - **Model-Based MCTS**: Monte Carlo Tree Search for structured exploration.
   *(To add new algorithms, implement the `act` interface and register them in `Algorithms/__init__.py`'s `get_algorithms()` function).*
 - **`Models/`**: Contains the learning architectures, primarily the CDL (Causal Discovery Learning) model used to infer the causal dependency graph between O-RAN parameters and KPIs, and the environment transition models.
-- **`Parameters/`**: Centralized simulation parameters. Edit `Parameters/__init__.py` to tweak environments, algorithmic hyperparameters, simulation steps, and more.
-- **`DATA/`, `Tests/`, `runs/`, `rslts/`**: Directories dedicated to data storage, unit tests, TensorBoard logs, and evaluation results.
+- **`tests/`**: Golden regression tests for the numeric core.
+- **`runs/`**: TensorBoard logs, checkpoints, metrics, and resolved configurations from experiments.
+- **`results/` and `sweeps/`**: Generated evaluation summaries and sweep manifests.
 
 ## Execution
 

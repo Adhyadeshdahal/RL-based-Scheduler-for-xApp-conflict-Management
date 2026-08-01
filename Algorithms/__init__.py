@@ -1,7 +1,7 @@
-from Algorithms.QACM import QACM
 from Algorithms.model_based_cem import ModelBasedCEM
-from Algorithms.model_based_mppi import ModelBasedMPPI
 from Algorithms.model_based_mcts import ModelBasedMCTS
+from Algorithms.model_based_mppi import ModelBasedMPPI
+from Algorithms.QACM import QACM
 from config import ExperimentConfig
 
 

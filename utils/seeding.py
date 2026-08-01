@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 
-def seed_everything(seed, deterministic=False):
+def seed_everything(seed: int, deterministic: bool = False) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)

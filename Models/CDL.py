@@ -42,7 +42,6 @@ class StatePredictor(nn.Module):
         mask: (bs, state_dim+1) bool
         returns: mu (bs, 1), std (bs, 1)
         """
-        bs = s.shape[0]
         fd = self.state_dim
 
         feats = []

@@ -1,8 +1,11 @@
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 import torch
 
 
-def weighted_distance(xapp, utility):
+def weighted_distance(xapp: Any, utility: float) -> tuple[float, int]:
     mean, std = xapp.mean, xapp.std
     norm_threshold = (xapp.threshold - mean) / std
 
@@ -15,7 +18,13 @@ def weighted_distance(xapp, utility):
     return 0.0, 1
 
 
-def score_batch(next_kpis_batch, xapps, weights, scaling_term, device):
+def score_batch(
+    next_kpis_batch: torch.Tensor,
+    xapps: Sequence[Any],
+    weights: Sequence[float],
+    scaling_term: float,
+    device: torch.device | str,
+) -> torch.Tensor:
     count = next_kpis_batch.shape[0]
     kpis_np = next_kpis_batch.cpu().detach().numpy()
     costs = np.zeros(count)

@@ -1,5 +1,5 @@
-import numpy as np
 import torch
+
 from Algorithms.base import Planner
 from Algorithms.cost import score_batch
 

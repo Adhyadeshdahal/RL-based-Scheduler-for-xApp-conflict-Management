@@ -1,7 +1,8 @@
-import numpy as np
 import time
-from env_statistics.cache import get_cached_mean_std
 
+import numpy as np
+
+from env_statistics.cache import get_cached_mean_std
 
 NUM_SAMPLES = 1_000_000
 
@@ -73,7 +74,7 @@ if __name__ == "__main__":
         mean_std = get_mean_std(ranges, seed=0)
         print(f"\n# PARAM_RANGES[{idx}] ({'Train' if idx == 0 else 'Test'}):")
         print("MEAN_STD_KPIS = [")
-        for name, (mean, std) in zip(KPI_NAMES, mean_std):
+        for name, (mean, std) in zip(KPI_NAMES, mean_std, strict=True):
             print(f"    ({mean:.6f}, {std:.6f}),  # {name}")
         print("]")
         print(f"# Time: {time.perf_counter() - t0:.2f}s")

@@ -21,6 +21,7 @@ package = false
 
 [dependency-groups]
 dev = [
+    "mypy>=2.3.0",
     "pytest>=9.1.1",
     "ruff>=0.9",
 ]
@@ -34,11 +35,64 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-# Report-only: `ruff check --fix` would strip star-imports and re-exports that the
-# current layout depends on. Enforce in Phase 6.3, after Phase 1 removes them.
 select = ["E", "F", "W", "I", "UP", "B"]
 ignore = [
     "E501",   # line length -- the formatter owns this
-    "F403",   # star-import: intentional today, removed in Phase 1.4
-    "F405",   # name may be from star-import: consequence of F403
 ]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+strict_equality = true
+warn_no_return = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "Algorithms.QACM",
+    "Algorithms.model_based_cem",
+    "Algorithms.model_based_mcts",
+    "Algorithms.model_based_mppi",
+    "Algorithms",
+    "Environment.Environment_I",
+    "Environment.Environment_II",
+    "Environment",
+    "Models.CDL",
+    "Models.MLP",
+    "Models",
+    "Policies.RandomPolicy",
+    "Policies",
+    "env_statistics.EnvironmentI_mean_std",
+    "env_statistics.EnvironmentII_mean_std",
+    "env_statistics.cache",
+    "env_statistics",
+    "viz.*",
+    "main",
+    "evaluate_algorithms",
+    "visualize",
+    "cli",
+    "tests.*",
+]
+check_untyped_defs = false
+disallow_any_generics = false
+disallow_untyped_defs = false
+no_implicit_optional = false
+strict_equality = false
+warn_no_return = false
+warn_return_any = false
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = ["viz.*"]
+disable_error_code = ["arg-type", "attr-defined"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disable_error_code = ["arg-type", "attr-defined"]

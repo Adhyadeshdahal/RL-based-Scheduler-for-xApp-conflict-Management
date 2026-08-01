@@ -215,7 +215,7 @@ def draw_panel(
     clamped = [float(np.clip(v, thresh[0], thresh[1])) for v in algo_actions]
     display = jitter_values(clamped, sweep_range)
 
-    for idx, (disp_val, raw_val) in enumerate(zip(display, algo_actions)):
+    for idx, (disp_val, raw_val) in enumerate(zip(display, algo_actions, strict=True)):
         style = algo_style(algo_names[idx])
         y_at = float(np.interp(disp_val, sweep, primary_vals))
         ax.axvline(
@@ -300,7 +300,6 @@ def main(
         cdl.load_model(graph_checkpoint)
 
     algorithms = get_algorithms(cfg, model, env)
-    algo_names = [a.name for a in algorithms]
     utility_fns = env.get_utility_fns()
 
     KPI_THRESHOLDS, MEAN_STD_KPIS = env.get_thresholds_stds()
@@ -311,7 +310,7 @@ def main(
     logger.info("Running evaluation for %d environment steps", cfg.num_steps)
 
     env.reset()
-    all_utilities = {algo.name: [] for algo in algorithms}
+    all_utilities: dict[str, list[float]] = {algo.name: [] for algo in algorithms}
 
     for global_step in range(cfg.num_steps):
         state_dict = env.get_state()
@@ -329,16 +328,13 @@ def main(
         else:
             logger.info("Step %d: %d conflict(s) detected", global_step, num_conflicts)
 
-        step_utilities = {algo.name: [] for algo in algorithms}
+        step_utilities: dict[str, list[float]] = {algo.name: [] for algo in algorithms}
 
         for edge in edges:
             param_id = edge["param_id"]
             primary_xapp_id = edge["primary_xapp_id"]
             xapps_in_conflict = edge["xapps_in_conflict"]
             conflict_xapp_ids = edge["conflict_xapp_ids"]
-
-            param = env.params[param_id]
-            thresh = param.get_threshold()
 
             num_xapps = len(xapps_in_conflict)
             # Under review: this currently normalizes every conflict weight back to one.
@@ -348,7 +344,7 @@ def main(
                     weights[idx] *= 1.0
             weights = weights / weights.sum() * num_xapps
 
-            for algo_idx, algo in enumerate(algorithms):
+            for algo in algorithms:
                 state_for_algo = state_t.clone().detach()
 
                 action = algo.act(

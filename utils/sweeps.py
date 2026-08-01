@@ -1,18 +1,20 @@
 import json
 import math
 from collections import defaultdict
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Any, cast
 
-from config import load_config
+from config import ExperimentConfig, load_config
 from utils.runs import read_metrics
 
 
-def read_manifest(sweep_dir):
+def read_manifest(sweep_dir: str | Path) -> dict[str, Any]:
     path = Path(sweep_dir) / "manifest.json"
-    return json.loads(path.read_text())
+    return cast(dict[str, Any], json.loads(path.read_text()))
 
 
-def append_run(sweep_dir, run_dir, cfg):
+def append_run(sweep_dir: str | Path, run_dir: str | Path, cfg: ExperimentConfig) -> None:
     sweep_dir = Path(sweep_dir)
     sweep_dir.mkdir(parents=True, exist_ok=True)
     path = sweep_dir / "manifest.json"
@@ -28,7 +30,7 @@ def append_run(sweep_dir, run_dir, cfg):
     path.write_text(json.dumps(manifest, indent=2, sort_keys=True))
 
 
-def graph_run_for_seed(sweep_dir, seed):
+def graph_run_for_seed(sweep_dir: str | Path, seed: int) -> Path:
     manifest = read_manifest(sweep_dir)
     for run in manifest["runs"]:
         if run["model_kind"] == "cdl" and run["seed"] == seed:
@@ -36,9 +38,9 @@ def graph_run_for_seed(sweep_dir, seed):
     raise ValueError(f"No CDL run for seed {seed} in {sweep_dir}")
 
 
-def aggregate(sweep_dirs, output_dir):
-    values = defaultdict(dict)
-    pooled_values = defaultdict(dict)
+def aggregate(sweep_dirs: Iterable[str | Path], output_dir: str | Path) -> Path:
+    values: defaultdict[tuple[str, str, str], dict[int, float]] = defaultdict(dict)
+    pooled_values: defaultdict[tuple[str, str], dict[int, float]] = defaultdict(dict)
     planners = set()
     run_keys = set()
     for sweep_dir in sweep_dirs:
@@ -128,11 +130,11 @@ _T95 = {
 }
 
 
-def _t95(df):
+def _t95(df: int) -> float:
     return _T95.get(df, 1.96)
 
 
-def _statistics(values):
+def _statistics(values: Iterable[float]) -> dict[str, Any]:
     values = list(values)
     n = len(values)
     if not n:
@@ -150,7 +152,9 @@ def _statistics(values):
     }
 
 
-def _contrasts(values, pooled_values, row_keys, run_keys):
+def _contrasts(
+    values: Any, pooled_values: Any, row_keys: Any, run_keys: Any
+) -> list[dict[str, Any]]:
     contrasts = []
     keys = {(environment, planner) for environment, _, planner in row_keys}
     for environment, planner in sorted(keys):
@@ -169,7 +173,7 @@ def _contrasts(values, pooled_values, row_keys, run_keys):
     return contrasts
 
 
-def _contrast(environment, planner, cdl, mlp):
+def _contrast(environment: str, planner: str, cdl: Any, mlp: Any) -> dict[str, Any]:
     shared_seeds = cdl.keys() & mlp.keys()
     deltas = [cdl[seed] - mlp[seed] for seed in shared_seeds]
     cdl_values = list(cdl.values())
@@ -198,7 +202,7 @@ def _contrast(environment, planner, cdl, mlp):
     }
 
 
-def _table(summary):
+def _table(summary: dict[str, Any]) -> str:
     lines = [
         "\\begin{tabular}{lllrrr}",
         "\\toprule",
@@ -222,7 +226,7 @@ def _table(summary):
     return "\n".join(lines)
 
 
-def _table_row(environment, model_kind, planner, stats):
+def _table_row(environment: str, model_kind: str, planner: str, stats: dict[str, Any]) -> str:
     ci = stats["ci95"]
     ci_text = "--" if ci is None else f"[{ci[0]:.4f}, {ci[1]:.4f}]"
     return (
@@ -231,5 +235,5 @@ def _table_row(environment, model_kind, planner, stats):
     )
 
 
-def _number(value):
+def _number(value: float | None) -> str:
     return "--" if value is None else f"{value:.4f}"
