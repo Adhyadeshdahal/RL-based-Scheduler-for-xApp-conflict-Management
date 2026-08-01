@@ -13,6 +13,7 @@ Pipeline
      - Conflict count per step
 """
 
+import json
 import logging
 from dataclasses import replace
 from datetime import datetime
@@ -77,6 +78,18 @@ def main(
     utility_fns = env.get_utility_fns()
 
     KPI_THRESHOLDS, MEAN_STD_KPIS = env.get_thresholds_stds()
+    algorithm_names = [algo.name for algo in algorithms]
+    utilities_data = {
+        "version": 1,
+        "environment": cfg.environment,
+        "model_kind": cfg.model_kind,
+        "algorithm_names": algorithm_names,
+        "param_thresholds": [list(param.get_threshold()) for param in env.params],
+        "kpi_thresholds": KPI_THRESHOLDS,
+        "mean_std_kpis": [list(mean_std) for mean_std in MEAN_STD_KPIS],
+        "steps": [],
+    }
+    sweep_points = 101
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     writer = SummaryWriter(log_dir=run_dir / "tensorboard" / f"evaluate-{timestamp}")
@@ -103,12 +116,36 @@ def main(
             logger.info("Step %d: %d conflict(s) detected", global_step, num_conflicts)
 
         step_utilities: dict[str, list[float]] = {algo.name: [] for algo in algorithms}
+        step_panels = []
 
         for edge in edges:
             param_id = edge["param_id"]
             primary_xapp_id = edge["primary_xapp_id"]
             xapps_in_conflict = edge["xapps_in_conflict"]
             conflict_xapp_ids = edge["conflict_xapp_ids"]
+            param_threshold = env.params[param_id].get_threshold()
+            sweep = np.linspace(*param_threshold, num=sweep_points)
+            curves = [
+                {
+                    "xapp_id": xid,
+                    "values": [
+                        compute_utility(utility_fns[xid], raw_params, param_id, value)
+                        for value in sweep
+                    ],
+                }
+                for xid in conflict_xapp_ids
+                if xid < len(utility_fns)
+            ]
+            panel = {
+                "step": global_step,
+                "param_id": param_id,
+                "primary_xapp_id": primary_xapp_id,
+                "sweep": sweep.tolist(),
+                "curves": curves,
+                "algo_names": algorithm_names,
+                "algo_actions": [],
+                "planner_utilities": {},
+            }
 
             num_xapps = len(xapps_in_conflict)
             # Under review: this currently normalizes every conflict weight back to one.
@@ -129,12 +166,16 @@ def main(
                     scaling_term=10,
                 )
                 raw_val = env.action_to_param(action)[1]
+                panel["algo_actions"].append(float(raw_val))
 
+                planner_values = []
                 for xid in conflict_xapp_ids:
                     if xid >= len(utility_fns):
                         continue
                     u = compute_utility(utility_fns[xid], raw_params, param_id, raw_val)
                     step_utilities[algo.name].append(u)
+                    planner_values.append(u)
+                panel["planner_utilities"][algo.name] = planner_values
 
                 if primary_xapp_id < len(utility_fns):
                     logger.info(
@@ -147,10 +188,13 @@ def main(
                             utility_fns[primary_xapp_id], raw_params, param_id, raw_val
                         ),
                     )
+
                 else:
                     logger.info(
                         "%s x%d->p%d action=%.4f", algo.name, primary_xapp_id, param_id, raw_val
                     )
+
+            step_panels.append(panel)
 
         scalars_for_step = {}
         for algo in algorithms:
@@ -163,6 +207,8 @@ def main(
 
         if scalars_for_step:
             writer.add_scalars("mean_utility/all_algorithms", scalars_for_step, global_step)
+
+        utilities_data["steps"].append({"step": global_step, "panels": step_panels})
 
         neutral_action = np.zeros(act_dim)
         # Intentional for independent conflict evaluation; action proposals are not applied.
@@ -179,5 +225,6 @@ def main(
         }
     }
     write_metrics(run_dir, metrics)
+    (run_dir / "utilities.json").write_text(json.dumps(utilities_data, indent=2))
     logger.info("Evaluation metrics saved to %s", run_dir / "metrics.json")
     return 0

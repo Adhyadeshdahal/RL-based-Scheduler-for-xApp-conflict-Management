@@ -9,7 +9,7 @@ CHUNK = 100_000
 
 
 def safe_exp_i(x):
-    return np.where(x > 0, x, 1e-3)
+    return np.maximum(x, 1e-3)
 
 
 def compute_kpis_i(params):
@@ -63,7 +63,14 @@ def get_env_i_mean_std(param_ranges, seed, num_samples=NUM_SAMPLES):
         kpis = compute_kpis_i(params)
         return [(float(np.mean(k)), float(np.std(k))) for k in kpis]
 
-    return get_cached_mean_std("EnvironmentI", param_ranges, seed, num_samples, compute)
+    return get_cached_mean_std(
+        "EnvironmentI",
+        param_ranges,
+        seed,
+        num_samples,
+        compute,
+        cache_version="environment-i-max-floor-v2",
+    )
 
 
 if __name__ == "__main__":
@@ -122,4 +129,11 @@ def get_env_ii_mean_std(param_ranges, seed, num_samples=1_000_000):
         kpis = compute_kpis_ii(params)
         return [(float(np.mean(k)), float(np.std(k))) for k in kpis]
 
-    return get_cached_mean_std("EnvironmentII", param_ranges, seed, num_samples, compute)
+    return get_cached_mean_std(
+        "EnvironmentII",
+        param_ranges,
+        seed,
+        num_samples,
+        compute,
+        cache_version="environment-ii-v1",
+    )

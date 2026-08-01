@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Sequence
 from typing import Any, cast
 
@@ -5,7 +7,9 @@ import gymnasium as gym
 import numpy as np
 
 
-def set_param_default(threshold: tuple[float, float], value: float, params: Any = None) -> float:
+def set_param_default(
+    threshold: tuple[float, float], value: float, params: Sequence[Param] | None = None
+) -> float:
     low, high = threshold
     return float(np.clip(value, low, high))
 
@@ -16,7 +20,7 @@ class XApp:
         threshold: float,
         utility_fn: Callable[[list[float]], float],
         name: str,
-        params: tuple["Param", ...],
+        params: tuple[Param, ...],
         direction: int,
         mean_std: tuple[float, float],
     ) -> None:
@@ -44,7 +48,7 @@ class Param:
     def get_param(self) -> float:
         return self.value
 
-    def set_param(self, value: float, params: Any = None) -> None:
+    def set_param(self, value: float, params: Sequence[Param] | None = None) -> None:
         self.value = self.set_param_fn(self.threshold, value, params)
 
     def get_threshold(self) -> tuple[float, float]:
@@ -176,7 +180,7 @@ class BaseORANEnv(gym.Env[Any, Any]):
         return sum(next_kpis)
 
     def step(  # ty: ignore[invalid-method-override] -- Legacy Gym 4-tuple API is intentional.
-        self, action: tuple[int, int, int]
+        self, action: tuple[int, int, int] | np.ndarray
     ) -> tuple[dict[str, np.ndarray], float, bool, dict[str, bool]]:
         param_id, bin_id, index = (int(value) for value in action)
         low, high = self.paramThresholds[param_id]

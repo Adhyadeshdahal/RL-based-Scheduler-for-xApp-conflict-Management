@@ -5,16 +5,23 @@ from cdd_oran.config import DEFAULT_CONFIG, ExperimentConfig
 from cdd_oran.envs import get_env
 from cdd_oran.models import get_model
 from cdd_oran.utils.seeding import seed_everything
-from cdd_oran.viz import visualize_causal_graph, visualize_cmi_heatmap
+from cdd_oran.viz import visualize_causal_graph, visualize_cmi_heatmap, visualize_panels
 
 logger = logging.getLogger(__name__)
 
 
-def main(cfg: ExperimentConfig = DEFAULT_CONFIG, run_dir=None, figure="causal-graph"):
-    if cfg.model_kind == "mlp":
-        raise ValueError("MLP runs do not contain an explicit causal graph")
+def main(cfg: ExperimentConfig = DEFAULT_CONFIG, run_dir=None, figure="causal-graph", out=None):
     if run_dir is None:
         raise ValueError("An experiment run directory is required")
+
+    if figure == "panels":
+        output_path = Path(out) if out else Path(run_dir) / "panels.png"
+        visualize_panels(Path(run_dir) / "utilities.json", output_path)
+        logger.info("Wrote %s for %s", output_path, run_dir)
+        return 0
+
+    if cfg.model_kind == "mlp":
+        raise ValueError("MLP runs do not contain an explicit causal graph")
 
     seed_everything(cfg.seed, cfg.deterministic)
     env = get_env(cfg)

@@ -1,3 +1,8 @@
+import json
+import math
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import rcParams
 
@@ -166,3 +171,52 @@ def draw_panel(
         else f"$x_{{{primary_xapp_id}}}$ over $p_{{{param_id}}}$"
     )
     ax.set_title(title, pad=7)
+
+
+def visualize_panels(utilities_path: str | Path, output_path: str | Path) -> Path:
+    plt.switch_backend("Agg")
+    utilities_path = Path(utilities_path)
+    output_path = Path(output_path)
+    if not utilities_path.exists():
+        raise FileNotFoundError(f"Panel data not found: {utilities_path}")
+
+    data = json.loads(utilities_path.read_text())
+    panel_records = [panel for step in data["steps"] for panel in step["panels"]]
+    if not panel_records:
+        raise ValueError(f"No panel data found in {utilities_path}; run evaluate first")
+
+    columns = min(2, len(panel_records))
+    rows = math.ceil(len(panel_records) / columns)
+    fig, axes = plt.subplots(rows, columns, figsize=(8 * columns, 5.5 * rows), squeeze=False)
+    thresholds = data["kpi_thresholds"]
+    mean_std = [tuple(values) for values in data["mean_std_kpis"]]
+
+    for index, panel in enumerate(panel_records):
+        ax = axes[index // columns][index % columns]
+        curves = [(item["xapp_id"], item["values"]) for item in panel["curves"]]
+        draw_panel(
+            ax,
+            panel["sweep"],
+            curves,
+            panel["algo_actions"],
+            panel["algo_names"],
+            panel["param_id"],
+            panel["primary_xapp_id"],
+            data["param_thresholds"][panel["param_id"]],
+            thresholds,
+            mean_std,
+        )
+        ax.set_title(f"Step {panel['step']}: {ax.get_title()}", pad=7)
+
+    for index in range(len(panel_records), rows * columns):
+        axes[index // columns][index % columns].set_visible(False)
+
+    fig.suptitle(
+        f"Planner utility panels: {data['environment']} / {data['model_kind']}",
+        y=1.0,
+    )
+    fig.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return output_path

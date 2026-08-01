@@ -47,7 +47,10 @@ def build_parser():
 
     viz = commands.add_parser("viz", help="Visualize a CDL run")
     viz.add_argument("--run", required=True, help="CDL training run containing checkpoint.pt")
-    viz.add_argument("--figure", choices=("causal-graph", "cmi-heatmap"), default="causal-graph")
+    viz.add_argument(
+        "--figure", choices=("causal-graph", "cmi-heatmap", "panels"), default="causal-graph"
+    )
+    viz.add_argument("--out", help="Output image path for the panels figure")
     _add_log_level(viz)
 
     sweep = commands.add_parser("sweep", help="Train and evaluate one run per seed")
@@ -110,7 +113,7 @@ def main(argv=None):
         cfg = _load_run_config(args.run, None)
         from cdd_oran.experiments.viz import main as visualize
 
-        return visualize(cfg, run_dir=args.run, figure=args.figure)
+        return visualize(cfg, run_dir=args.run, figure=args.figure, out=args.out)
     except (FileNotFoundError, ValueError) as error:
         logger.error("%s", error)
         return 1
