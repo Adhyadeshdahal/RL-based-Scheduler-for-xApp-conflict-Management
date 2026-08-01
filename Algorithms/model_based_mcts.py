@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 import math
+from Algorithms.base import Planner
+from Algorithms.cost import weighted_distance
 
 
 class MCTSNode:
@@ -17,7 +19,7 @@ class MCTSNode:
         self.untried = list(untried_actions)
 
 
-class ModelBasedMCTS:
+class ModelBasedMCTS(Planner):
     """
     Monte Carlo Tree Search planning.
     Same act() interface as QACM, ModelBasedCEM, ModelBasedMPPI.
@@ -55,35 +57,27 @@ class ModelBasedMCTS:
         w = weights_per_xapps
         tau = scaling_term
 
-        # FIX 3: use per-param bin-length as upper bound for index
         max_index = self.env.action_space[pi + 2]
 
-        # FIX 5: root carries only bin_id choices; each bin_id child carries
-        # index choices. This gives the tree depth=2 and proper UCB1 guidance,
-        # instead of all 200 leaf actions crammed into the root's untried list.
         bin_ids = list(range(self.action_space[1] + 1))
         root = MCTSNode(action=None, parent=None, untried_actions=bin_ids)
 
         for _ in range(self.n_simulations):
             node = root
 
-            # ── Selection: descend by UCB1 until a node with untried children
             while not node.untried and node.children:
                 node = self._ucb_select(node)
 
-            # ── Expansion ────────────────────────────────────────────────
             if node.untried:
                 if node.action is None:
-                    # Expanding root: create a bin_id child
                     bin_id = node.untried.pop()
-                    index_choices = list(range(max_index + 1))  # FIX 3
+                    index_choices = list(range(max_index + 1))
                     child = MCTSNode(
                         action=bin_id,
                         parent=node,
                         untried_actions=index_choices,
                     )
                 else:
-                    # Expanding a bin_id node: create a (bin_id, index) leaf
                     index = node.untried.pop()
                     child = MCTSNode(
                         action=(node.action, index),
@@ -93,24 +87,20 @@ class ModelBasedMCTS:
                 node.children.append(child)
                 node = child
 
-            # ── Simulation: evaluate only at depth-2 leaves ───────────
             if isinstance(node.action, tuple):
                 cost = self._evaluate(node.action, pi, s0, xapps, w, tau)
             else:
-                # Still at a bin_id node — do a random rollout
                 if node.action is not None:
-                    rand_idx = np.random.randint(0, max_index + 1)  # FIX 3
+                    rand_idx = np.random.randint(0, max_index + 1)
                     cost = self._evaluate((node.action, rand_idx), pi, s0, xapps, w, tau)
                 else:
                     cost = 0.0
 
-            # ── Backpropagation ────────────────────────────────────────
             while node is not None:
                 node.visits += 1
                 node.total_cost += cost
                 node = node.parent
 
-        # Pick the best (bin_id, index) leaf among all depth-2 children
         best_cost = float("inf")
         best_bin = 0
         best_idx = 0
@@ -130,8 +120,6 @@ class ModelBasedMCTS:
 
         def ucb_score(child):
             if child.visits == 0:
-                # FIX 5b: large finite value so unvisited nodes are preferred
-                # but don't dominate once the tree has grown
                 return 1e9
             avg_cost = child.total_cost / child.visits
             explore = self.ucb_c * math.sqrt(log_parent / child.visits)
@@ -154,22 +142,8 @@ class ModelBasedMCTS:
         sat_vec = np.zeros(len(xapps))
         for i, xapp in enumerate(xapps):
             u = xapp.compute_utility(kpis)
-            d, s = self._weighted_distance(xapp, u, i)
+            d, s = weighted_distance(xapp, u)
             cost_vec[i] = w[i] * d * tau
             sat_vec[i] = s
         f_cost = cost_vec.sum() - (sat_vec.sum()) ** 2
         return float(f_cost)
-
-    def _weighted_distance(self, xapp, utility, xapp_idx):
-        # FIX 2: normalise raw KPI threshold into z-score space
-        mean, std = xapp.mean, xapp.std
-        norm_threshold = (xapp.threshold - mean) / std
-
-        if xapp.direction == 0:
-            if utility < norm_threshold:
-                return norm_threshold - utility, 0
-            return 0.0, 1
-        else:
-            if utility > norm_threshold:
-                return utility - norm_threshold, 0
-            return 0.0, 1

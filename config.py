@@ -25,7 +25,6 @@ class TrainConfig:
     eval_steps: int
     plot_freq: int
     test_batch_size: int
-    model_based_start: int
 
 
 @dataclass(frozen=True)

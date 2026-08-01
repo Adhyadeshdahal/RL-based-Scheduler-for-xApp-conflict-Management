@@ -19,7 +19,6 @@ train:
   eval_steps: 10
   plot_freq: 500
   test_batch_size: 10
-  model_based_start: 50000
 planner:
   n_horizon: 1
   cem:

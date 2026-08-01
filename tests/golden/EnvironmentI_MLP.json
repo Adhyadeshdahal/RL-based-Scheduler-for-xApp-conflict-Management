@@ -252,12 +252,12 @@
       "planner": "ModelBasedMPPI",
       "action": [
         0,
-        5,
-        0
+        4,
+        3
       ],
-      "raw_val": 166.66666667,
+      "raw_val": 136.33333333,
       "utilities": [
-        0.68981342,
+        0.83822363,
         -0.15973104
       ]
     },
@@ -314,12 +314,12 @@
       "planner": "ModelBasedMPPI",
       "action": [
         1,
-        4,
-        13
+        5,
+        11
       ],
-      "raw_val": 146.33333333,
+      "raw_val": 177.66666667,
       "utilities": [
-        -0.78517098
+        -0.38441834
       ]
     },
     {
@@ -376,12 +376,12 @@
       "planner": "ModelBasedMPPI",
       "action": [
         0,
-        5,
-        0
+        4,
+        3
       ],
-      "raw_val": 166.66666667,
+      "raw_val": 136.33333333,
       "utilities": [
-        0.68981342,
+        0.83822363,
         -0.15973104
       ]
     },
@@ -498,12 +498,12 @@
       "planner": "ModelBasedMPPI",
       "action": [
         3,
-        5,
+        4,
         0
       ],
-      "raw_val": 1.66666667,
+      "raw_val": 1.33333333,
       "utilities": [
-        0.10595853
+        0.38861687
       ]
     },
     {
@@ -558,12 +558,12 @@
       "planner": "ModelBasedMPPI",
       "action": [
         4,
-        5,
+        4,
         0
       ],
-      "raw_val": 1.66666667,
+      "raw_val": 1.33333333,
       "utilities": [
-        0.01825791
+        -0.40840647
       ]
     },
     {

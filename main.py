@@ -1,8 +1,7 @@
 import torch
 import numpy as np
 from torch.utils.data import Dataset
-from Environment import get_env, ORANEnvironment, ORANEnvironment2
-from Policies.model_based import ModelBasedPolicy
+from Environment import get_env
 import random
 from Policies.RandomPolicy import RandomPolicy
 from torch.utils.tensorboard import SummaryWriter
@@ -20,18 +19,6 @@ def state_to_tensor(state_dict):
         elif "kpi" in key:
             kpi.append(state_dict[key])
     return torch.from_numpy(np.concatenate(param + kpi)).float()
-
-
-def oran_reward(pred_kpis, actions):
-    """
-    pred_kpis: (n_candidate, n_horizon, n_kpis)
-    actions:   (n_candidate, n_horizon, action_dim)
-    Returns:   (n_candidate, n_horizon)
-
-    Maximise sum of all predicted KPIs across horizon.
-    Replace with your actual reward definition if needed.
-    """
-    return pred_kpis.sum(dim=-1)
 
 
 class ReplayBufferDataset(Dataset):
@@ -71,8 +58,6 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
     action_dim = env.action_dim
 
     random_policy = RandomPolicy(action_dim=env.action_dim, action_space=env.action_space)
-    mb_policy = None
-
     model = get_model(cfg, env)
 
     model_load_name = f"{model_label}-{cfg.environment}_model.pt"
@@ -90,11 +75,7 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
     episode_reward = 0
     episode_rewards = []
     for step in range(cfg.train.total_steps):
-        if mb_policy is not None:
-            s_tensor = state_to_tensor(obs).to(cfg.device)
-            action = mb_policy.act(s_tensor)
-        else:
-            action = random_policy.act()
+        action = random_policy.act()
 
         next_obs, reward, done, info = env.step(action)
 
@@ -133,18 +114,6 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
                 s_pair = torch.stack([s, s_next], dim=1).to(cfg.device)
                 model.update_mask(s_pair, a)
 
-        if step == cfg.train.model_based_start:
-            print(f"\nStep {step}: CDL trained — switching to model-based policy")
-            mb_policy = ModelBasedPolicy(
-                cdl=model,
-                env=env,
-                reward_fn=oran_reward,
-                n_horizon=cfg.planner.n_horizon,
-                n_candidate=cfg.planner.cem.n_candidate,
-                n_top=cfg.planner.cem.n_top,
-                n_iter=cfg.planner.cem.n_iter,
-            )
-
         if step % cfg.train.plot_freq == 0:
             if cfg.model_kind == "cdl":
                 if len(test_buffer) >= cfg.train.test_batch_size:
@@ -171,14 +140,12 @@ def main(cfg: ExperimentConfig = DEFAULT_CONFIG, resume=False):
                 f1 = 2 * precision * recall / (precision + recall + 1e-8)
                 accuracy = (tp + tn) / (tp + tn + fp + fn)
 
-                mode = "model-based" if mb_policy is not None else "random"
-
                 writer.add_scalar("graph_eval/precision", precision, step)
                 writer.add_scalar("graph_eval/recall", recall, step)
                 writer.add_scalar("graph_eval/f1", f1, step)
                 writer.add_scalar("graph_eval/accuracy", accuracy, step)
 
-                print(f"\nStep {step} | Loss: {loss:.4f} | Policy: {mode}")
+                print(f"\nStep {step} | Loss: {loss:.4f} | Policy: random")
                 print("Precision:", precision)
                 print("Recall:", recall)
                 print("F1:", f1)

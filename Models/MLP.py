@@ -41,7 +41,7 @@ class MLPInference:
     ):
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.kpi_start = kpi_start  # FIX: no more hardcoded 8
+        self.kpi_start = kpi_start
         self.cmi_threshold = cmi_threshold
         self.eval_tau = eval_tau
         self.eval_steps = eval_steps
@@ -52,7 +52,6 @@ class MLPInference:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = torch.device(device)
 
-        # FIX: input is state + action concatenated
         self.model = self.models = MLP(
             input_dim=state_dim + action_dim,
             output_dim=2 * state_dim,

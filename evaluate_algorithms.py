@@ -36,12 +36,12 @@ XAPP_COLORS = [
     "#3F51B5",
 ]
 
-ALGO_STYLES = [
-    dict(color="#D32F2F", marker="o", linestyle="-", label="QACM"),
-    dict(color="#212121", marker="D", linestyle="-", label="ModelBasedMCTS"),
-    dict(color="#F44336", marker="^", linestyle="--", label="ModelBasedMPPI"),
-    dict(color="#00897B", marker="s", linestyle="-.", label="ModelBasedCEM"),
-]
+ALGO_STYLES = {
+    "QACM": dict(color="#D32F2F", marker="o", linestyle="-", label="QACM"),
+    "ModelBasedMCTS": dict(color="#212121", marker="D", linestyle="-", label="ModelBasedMCTS"),
+    "ModelBasedMPPI": dict(color="#F44336", marker="^", linestyle="--", label="ModelBasedMPPI"),
+    "ModelBasedCEM": dict(color="#00897B", marker="s", linestyle="-.", label="ModelBasedCEM"),
+}
 _EXTRA_COLORS = ["#7B1FA2", "#1565C0", "#558B2F", "#E65100"]
 _EXTRA_MARKERS = ["P", "X", "v", "<"]
 
@@ -94,15 +94,15 @@ def denormalize_params(norm_params, env):
     return raw
 
 
-def algo_style(idx, algo_names):
-    if idx < len(ALGO_STYLES):
-        return ALGO_STYLES[idx]
-    extra = idx - len(ALGO_STYLES)
+def algo_style(name):
+    if name in ALGO_STYLES:
+        return ALGO_STYLES[name]
+    extra = len(ALGO_STYLES)
     return dict(
         color=_EXTRA_COLORS[extra % len(_EXTRA_COLORS)],
         marker=_EXTRA_MARKERS[extra % len(_EXTRA_MARKERS)],
         linestyle="-",
-        label=algo_names[idx] if idx < len(algo_names) else f"Algo {idx}",
+        label=name,
     )
 
 
@@ -212,7 +212,7 @@ def draw_panel(
     display = jitter_values(clamped, sweep_range)
 
     for idx, (disp_val, raw_val) in enumerate(zip(display, algo_actions)):
-        style = algo_style(idx, algo_names)
+        style = algo_style(algo_names[idx])
         y_at = float(np.interp(disp_val, sweep, primary_vals))
         ax.axvline(
             disp_val,

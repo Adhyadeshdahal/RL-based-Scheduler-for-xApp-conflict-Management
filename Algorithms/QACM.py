@@ -1,8 +1,10 @@
 import numpy as np
 import torch
+from Algorithms.base import Planner
+from Algorithms.cost import weighted_distance
 
 
-class QACM:
+class QACM(Planner):
     def __init__(self, model, env):
         self.model = model
         self.env = env
@@ -16,29 +18,7 @@ class QACM:
         return xapp.compute_utility(kpis)
 
     def obtain_weighted_distance(self, xapp, utility):
-        # FIX 2: threshold must be in the same normalised z-score space as utility.
-        # xapp.threshold is a raw KPI value; normalise it before comparing.
-        # Compare utility (z-score) against the normalised threshold.
-        # Since env sets xapp.threshold = KPI_THRESHOLDS[i] (raw), we normalise here.
-        mean, std = xapp.mean, xapp.std
-        norm_threshold = (xapp.threshold - mean) / std
-
-        d, s = 0, 0
-        if xapp.direction == 0:  # maximise
-            if utility < norm_threshold:
-                d = norm_threshold - utility
-                s = 0
-            else:
-                d = 0.0
-                s = 1
-        else:  # minimise
-            if utility > norm_threshold:
-                d = utility - norm_threshold
-                s = 0
-            else:
-                d = 0.0
-                s = 1
-        return d, s
+        return weighted_distance(xapp, utility)
 
     def act(
         self,
@@ -55,15 +35,13 @@ class QACM:
         w = weights_per_xapps
         tau = scaling_term
 
-        # FIX 3: use per-param bin-length as upper bound for index, not action_space[2]
-        # action_space = [num_params-1, num_bins-1] + max_bin_length (per-param list)
         max_index = self.env.action_space[pi + 2]
 
         pl_opt = None
         min_cost = float("inf")
 
         for bin_id in range(self.action_space[1] + 1):
-            for index in range(max_index + 1):  # FIX 3
+            for index in range(max_index + 1):
                 action = [pi, bin_id, index]
 
                 action_tensor = (
