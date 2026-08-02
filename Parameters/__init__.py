@@ -3,19 +3,19 @@ import torch
 from datetime import datetime
 from Tests import get_envII_mean_std,get_envI_mean_std
 
-SEED = 0
-IS_TRAIN  =   False# Set to False for evaluation only
+IS_TRAIN  =   True# Set to False for evaluation only
 IS_TEST   =  not IS_TRAIN # Set to True for testing with a smaller number of steps
-USE_CMI = False #  to True to use CMI-based model, False to use MLP-based model
+SEED = 0 if IS_TEST else 45 # Set to 0 for testing, 45 for training
+USE_CMI = True #  to True to use CMI-based model, False to use MLP-based model
 USE_MLP = not USE_CMI
 TEST_BATCH_SIZE = 10 # Used to test the model with mse loss, this denotes the batch size for testing, set to 1 for testing with mse loss for 1 sample
 ENVIRONMENT = "EnvironmentI" #or "EnvironmentI" | "EnvironmentII"
-NUM_STEPS = 10 # Number of steps to run in test mode, set to 10 for quick testing, increase for more thorough evaluation
+NUM_STEPS = 30 # Number of steps to run in test mode, set to 10 for quick testing, increase for more thorough evaluation
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 RUN_NAME = f"{ENVIRONMENT}-{timestamp}"
 
-TOTAL_STEPS              = 50000 #Total steps for training the model
+TOTAL_STEPS              = 20000 #Total steps for training the model
 INIT_STEPS               = 4000    # No of steps that uses random exploration only
 MODEL_BASED_START        = 50000   # No of steps after which it uses model based policy for exploration switch from random to model-based.Setting it to 20k effectively ensures random exploration only.
 INFERENCE_GRADIENT_STEPS = 1 
@@ -41,7 +41,7 @@ TEMPERATURE = 0.6 # Lower for greedier selection
 NOISE_SIGMA = 0.1 # Added small noise for exploration
 
 #FOR MCTS
-N_SIMULATIONS   = 3  # Increased for deeper search
+N_SIMULATIONS   = 3000  # Increased for deeper search
 USB_C = 1.5   # Slightly higher for more exploration
 
 
@@ -105,14 +105,14 @@ ENVIRONMENT_I_PARAM_RANGES = []
 
 if IS_TEST:
     ENVIRONMENT_I_PARAM_RANGES = [
-        (0, 300),  # P1
-        (0, 300),  # P2
-        (0, 3),    # P3
-        (0, 3),    # P4
-        (0, 3),    # P5
-        (0, 3),    # P6
-        (0, 3),    # P7
-    ]
+            (-10, 310),  # P1
+            (-10, 310),  # P2
+            (-5, 8),    # P3
+            (-7, 10),    # P4
+            (-10, 13),    # P5
+            (0, 3),    # P6
+            (-3, 6),    # P7
+        ]
     ENVIRONMENT_I_MEAN_STDS = get_envI_mean_std(ENVIRONMENT_I_PARAM_RANGES, seed=SEED)
     if ENVIRONMENT == "EnvironmentI":
         print(f"ENVIRONMENT_I_PARAM_RANGES: {ENVIRONMENT_I_PARAM_RANGES}")
